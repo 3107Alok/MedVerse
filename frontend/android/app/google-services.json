@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "54473355441",
+    "project_id": "medinexa-cf258",
+    "storage_bucket": "medinexa-cf258.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:54473355441:android:47ae847c5d0ccb069db290",
+        "android_client_info": {
+          "package_name": "com.medinexa.frontend"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "54473355441-3u1jol88kaaqastqo6j3npijcof26v7u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-57iKIHRcjtYPPC5n4KQyibaXuZY1SYk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "54473355441-3u1jol88kaaqastqo6j3npijcof26v7u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

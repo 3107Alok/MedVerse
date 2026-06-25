@@ -1,0 +1,10 @@
+flask
+flask-cors
+pymongo
+dnspython
+firebase-admin
+pytesseract
+pillow
+requests
+python-dotenv
+google-generativeai

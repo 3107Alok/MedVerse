@@ -1,0 +1,38 @@
+# Virtual Environments
+.venv/
+backend/venv/
+venv/
+
+# Python Cache
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment Variables
+.env
+backend/.env
+
+# Local Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# IDE Settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Flutter build outputs
+frontend/build/
+frontend/.dart_tool/
+frontend/.packages
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/android/local.properties
+frontend/android/key.properties
+frontend/android/app/local.properties
+frontend/android/app/GeneratedPluginRegistrant.java
