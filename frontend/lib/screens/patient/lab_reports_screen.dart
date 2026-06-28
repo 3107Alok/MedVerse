@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:frontend/screens/pdf_viewer_screen.dart';
-import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
-import 'package:frontend/config/api_config.dart';
-
 import 'package:frontend/services/auth_provider.dart';
 import 'package:frontend/services/lab_service.dart';
 import 'package:frontend/theme/theme_notifier.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/theme/app_theme.dart';
 
 class LabReportsScreen extends StatelessWidget {
   const LabReportsScreen({super.key});
@@ -34,12 +31,16 @@ class LabReportsScreen extends StatelessWidget {
     final subtitleColor = isDark ? Colors.white60 : Colors.grey[700];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lab Reports')),
+      backgroundColor: isDark ? AppTheme.darkBg : AppTheme.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: const Text('Lab Reports'),
+      ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: LabService().getPatientLabReportsStream(patientId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return GlassLoadingIndicator(isDarkMode: isDark);
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error loading reports', style: GoogleFonts.outfit(color: textColor)));
@@ -50,7 +51,7 @@ class LabReportsScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.science_outlined, size: 64, color: isDark ? Colors.white30 : Colors.grey[400]),
+                  Icon(Icons.science_outlined, size: 64, color: AppTheme.pastelBlue),
                   const SizedBox(height: 16),
                   Text(
                     'No Lab Reports Available',
@@ -77,47 +78,56 @@ class LabReportsScreen extends StatelessWidget {
               final date = report['date'] ?? '';
               final bookingId = report['bookingId'] ?? '';
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: Colors.green.withOpacity(0.12),
-                        child: const Icon(Icons.picture_as_pdf, color: Colors.green),
+              return GlassContainer(
+                isDarkMode: isDark,
+                margin: const EdgeInsets.only(bottom: 10),
+                borderRadius: 16,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              testName,
-                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              labName,
-                              style: GoogleFonts.outfit(fontSize: 13, color: subtitleColor),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Date: $date  •  ID: $bookingId',
-                              style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey),
-                            ),
-                          ],
-                        ),
+                      child: const Icon(Icons.picture_as_pdf, color: AppTheme.accentColor, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            testName,
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15, color: textColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            labName,
+                            style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Date: $date  •  ID: $bookingId',
+                            style: GoogleFonts.outfit(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.open_in_new, color: Colors.blue),
-                        onPressed: fileId.isNotEmpty ? () => _openReport(context, fileId, "$testName.pdf") : null,
-                        tooltip: 'View Report',
-                      ),
-                    ],
-                  ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.open_in_new, color: AppTheme.primaryColor),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: fileId.isNotEmpty ? () => _openReport(context, fileId, "$testName.pdf") : null,
+                      tooltip: 'View Report',
+                    ),
+                  ],
                 ),
               );
             },

@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF6C63FF);
-  static const Color secondaryColor = Color(0xFF3F3D56);
-  static const Color accentColor = Color(0xFF00BFA6);
-  static const Color backgroundColor = Color(0xFFF8F9FA);
-  static const Color errorColor = Color(0xFFFF5252);
+  static const Color primaryColor = Color(0xFF9C27B0); // Vibrant Purple (matches Check In)
+  static const Color secondaryColor = Color(0xFF7E79B8);
+  static const Color accentColor = Color(0xFFFDBFE6); // Soft Pink
+  static const Color pastelBlue = Color(0xFF82C3FF); // Pastel Blue
+  static const Color backgroundColor = Color(0xFFF4F6FC); // Soft White/Blue
+  static const Color errorColor = Color(0xFFFF6B6B);
 
   // Dark mode colors
-  static const Color darkBg = Color(0xFF0F0F1A);
+  static const Color darkBg = Color(0xFF12121D);
   static const Color darkCard = Color(0xFF1E1E2E);
   static const Color darkPrimary = Color(0xFFBB86FC);
 
@@ -29,11 +30,11 @@ class AppTheme {
       elevation: 0,
       centerTitle: true,
       titleTextStyle: GoogleFonts.outfit(
-        color: secondaryColor,
-        fontSize: 20,
+        color: primaryColor, // Use vibrant purple for app bar title
+        fontSize: 22,
         fontWeight: FontWeight.bold,
       ),
-      iconTheme: const IconThemeData(color: secondaryColor),
+      iconTheme: const IconThemeData(color: primaryColor),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -148,4 +149,28 @@ class AppTheme {
     ),
     iconTheme: const IconThemeData(color: Colors.white70),
   );
+
+  static LinearGradient getBackgroundGradient(bool isDark) {
+    if (isDark) {
+      return const LinearGradient(
+        colors: [
+          Color(0xFF0F0C29), // Deep space
+          Color(0xFF302B63), // Deep purple
+          Color(0xFF24243E), // Dark indigo
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    } else {
+      return const LinearGradient(
+        colors: [
+          Color(0xFFD6D6F5), // Deeper Lavender
+          Color(0xFFFFE6F0), // Slightly darker Soft Pink
+          Color(0xFFBCE0FD), // Slightly darker Pastel Blue
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+  }
 }

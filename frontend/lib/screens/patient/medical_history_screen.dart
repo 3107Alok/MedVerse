@@ -9,6 +9,9 @@ import 'package:frontend/services/auth_provider.dart';
 import 'package:frontend/services/booking_service.dart';
 import 'package:frontend/services/lab_service.dart';
 import 'package:frontend/theme/theme_notifier.dart';
+import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
 
 class MedicalHistoryScreen extends StatefulWidget {
   const MedicalHistoryScreen({super.key});
@@ -94,7 +97,12 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
       return Scaffold(
         backgroundColor: bgColor,
         appBar: AppBar(title: const Text('Appointment History')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: AppTheme.getBackgroundGradient(isDark),
+          ),
+          child: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
@@ -117,9 +125,13 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         elevation: 0,
-        backgroundColor: isDark ? const Color(0xFF1E1E2E) : Colors.transparent,
+        backgroundColor: Colors.transparent,
       ),
-      body: combined.isEmpty
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.getBackgroundGradient(isDark),
+        ),
+        child: combined.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -158,22 +170,11 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                     ? DateFormat('MMM dd, yyyy • hh:mm a').format((appt['createdAt'] as Timestamp).toDate())
                     : 'Just now';
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: cardBgColor,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: GlassContainer(
+                    isDarkMode: isDark,
+                    borderRadius: 20,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: IntrinsicHeight(
@@ -325,9 +326,11 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                       ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
+          ),
+      ),
     );
   }
 }

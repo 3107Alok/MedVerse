@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/theme/glassmorphism.dart';
 import 'package:frontend/theme/theme_notifier.dart';
 import 'package:frontend/services/auth_provider.dart';
 import 'package:frontend/screens/auth/login_screen.dart';
@@ -81,8 +82,23 @@ class AuthWrapper extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
 
     if (authProvider.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: AppTheme.getBackgroundGradient(Theme.of(context).brightness == Brightness.dark),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.health_and_safety_outlined, size: 80, color: Color(0xFF9E84FF)),
+                const SizedBox(height: 32),
+                GlassLoadingIndicator(isDarkMode: Theme.of(context).brightness == Brightness.dark),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

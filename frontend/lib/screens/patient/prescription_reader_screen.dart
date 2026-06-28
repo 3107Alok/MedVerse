@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:frontend/theme/theme_notifier.dart';
+import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
 import 'package:frontend/services/prescription_service.dart';
 import 'package:frontend/models/prescription_model.dart';
 
@@ -108,12 +113,18 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = Provider.of<ThemeNotifier>(context).isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
     
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
         title: Text(
-          '🩺 Medoc Analyze',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+          'MediDoc Analyze',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor),
         ),
         actions: [
           if (_image != null || _analysisResult != null)
@@ -121,17 +132,22 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
               icon: const Icon(Icons.refresh),
               tooltip: 'Reset',
               onPressed: _reset,
+              color: textColor,
             )
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_analysisResult == null) ...[
-                _buildImageSelectorCard(theme),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.getBackgroundGradient(isDark),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_analysisResult == null) ...[
+                  _buildImageSelectorCard(theme, isDark),
                 const SizedBox(height: 24),
                 if (_image != null && !_isLoading)
                   ElevatedButton.icon(
@@ -150,27 +166,25 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
                     ),
                   ),
               ],
-              if (_isLoading) _buildLoadingState(theme),
-              if (_analysisResult != null && !_isLoading) _buildResultsView(theme),
-            ],
+                if (_isLoading) _buildLoadingState(theme, isDark),
+                if (_analysisResult != null && !_isLoading) _buildResultsView(theme, isDark),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildImageSelectorCard(ThemeData theme) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(color: theme.colorScheme.outlineVariant, width: 1.5),
-      ),
-      clipBehavior: Clip.antiAlias,
+  Widget _buildImageSelectorCard(ThemeData theme, bool isDark) {
+    return GlassContainer(
+      isDarkMode: isDark,
+      borderRadius: 24,
       child: Container(
         height: 320,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: _image != null
             ? Stack(
@@ -214,13 +228,13 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withAlpha(50),
+                      color: AppTheme.primaryColor.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.document_scanner_outlined,
                       size: 64,
-                      color: theme.colorScheme.primary,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -229,7 +243,7 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
                     style: GoogleFonts.outfit(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -240,7 +254,7 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.outfit(
                         fontSize: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color: isDark ? Colors.white70 : Colors.black54,
                       ),
                     ),
                   ),
@@ -299,41 +313,38 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
     );
   }
 
-  Widget _buildLoadingState(ThemeData theme) {
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 24.0),
-        child: Column(
-          children: [
-            const CircularProgressIndicator(strokeWidth: 4),
-            const SizedBox(height: 24),
-            Text(
-              'Analyzing Prescription',
-              style: GoogleFonts.outfit(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSurface,
-              ),
+  Widget _buildLoadingState(ThemeData theme, bool isDark) {
+    return GlassContainer(
+      isDarkMode: isDark,
+      borderRadius: 24,
+      padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 24.0),
+      child: Column(
+        children: [
+          const CircularProgressIndicator(strokeWidth: 4),
+          const SizedBox(height: 24),
+          Text(
+            'Analyzing Prescription',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
             ),
-            const SizedBox(height: 12),
-            Text(
-              _loadingMessage,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _loadingMessage,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: isDark ? Colors.white70 : Colors.black54,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildResultsView(ThemeData theme) {
+  Widget _buildResultsView(ThemeData theme, bool isDark) {
     final result = _analysisResult!;
     
     if (!result.success) {
@@ -709,6 +720,7 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
   }
 
   Widget _buildMedicalBillView(ThemeData theme, PrescriptionAnalysisResult result) {
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -725,9 +737,9 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
             child: Column(
               children: [
                 if (result.hospital.isNotEmpty)
-                  _buildOverviewRow(theme, Icons.local_hospital_outlined, 'Hospital', result.hospital),
+                  _buildOverviewRow(theme, Icons.local_hospital_outlined, 'Hospital', result.hospital, isDark),
                 if (result.date.isNotEmpty)
-                  _buildOverviewRow(theme, Icons.calendar_today_outlined, 'Bill Date', result.date),
+                  _buildOverviewRow(theme, Icons.calendar_today_outlined, 'Bill Date', result.date, isDark),
               ],
             ),
           ),
@@ -788,6 +800,7 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
   }
 
   Widget _buildDischargeSummaryView(ThemeData theme, PrescriptionAnalysisResult result) {
+    final isDark = theme.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -804,13 +817,13 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
             child: Column(
               children: [
                 if (result.patientName.isNotEmpty)
-                  _buildOverviewRow(theme, Icons.person_outline, 'Patient', result.patientName),
+                  _buildOverviewRow(theme, Icons.person_outline, 'Patient', result.patientName, isDark),
                 if (result.hospital.isNotEmpty)
-                  _buildOverviewRow(theme, Icons.local_hospital_outlined, 'Hospital', result.hospital),
+                  _buildOverviewRow(theme, Icons.local_hospital_outlined, 'Hospital', result.hospital, isDark),
                 if (result.date.isNotEmpty)
-                  _buildOverviewRow(theme, Icons.calendar_today_outlined, 'Discharge Date', result.date),
+                  _buildOverviewRow(theme, Icons.calendar_today_outlined, 'Discharge Date', result.date, isDark),
                 if (result.diagnosis.isNotEmpty)
-                  _buildOverviewRow(theme, Icons.healing_outlined, 'Diagnosis', result.diagnosis),
+                  _buildOverviewRow(theme, Icons.healing_outlined, 'Diagnosis', result.diagnosis, isDark),
               ],
             ),
           ),
@@ -950,51 +963,46 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
   }
 
   Widget _buildOverviewCard(ThemeData theme, PrescriptionAnalysisResult result) {
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: theme.colorScheme.outlineVariant, width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            if (result.patientName.isNotEmpty)
-              _buildOverviewRow(theme, Icons.person_outline, 'Patient', result.patientName),
-            if (result.doctorName.isNotEmpty)
-              _buildOverviewRow(theme, Icons.medical_services_outlined, 'Doctor', result.doctorName),
-            if (result.hospital.isNotEmpty)
-              _buildOverviewRow(theme, Icons.local_hospital_outlined, 'Hospital', result.hospital),
-            if (result.date.isNotEmpty)
-              _buildOverviewRow(theme, Icons.calendar_today_outlined, 'Date', result.date),
-            if (result.diagnosis.isNotEmpty)
-              _buildOverviewRow(theme, Icons.healing_outlined, 'Diagnosis', result.diagnosis),
-            if (result.followUp.isNotEmpty)
-              _buildOverviewRow(theme, Icons.event_repeat_outlined, 'Follow-up', result.followUp),
-          ],
-        ),
+    final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
+    return GlassContainer(
+      isDarkMode: isDark,
+      borderRadius: 20,
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          if (result.patientName.isNotEmpty)
+            _buildOverviewRow(theme, Icons.person_outline, 'Patient', result.patientName, isDark),
+          if (result.doctorName.isNotEmpty)
+            _buildOverviewRow(theme, Icons.medical_services_outlined, 'Doctor', result.doctorName, isDark),
+          if (result.hospital.isNotEmpty)
+            _buildOverviewRow(theme, Icons.local_hospital_outlined, 'Hospital', result.hospital, isDark),
+          if (result.date.isNotEmpty)
+            _buildOverviewRow(theme, Icons.calendar_today_outlined, 'Date', result.date, isDark),
+          if (result.diagnosis.isNotEmpty)
+            _buildOverviewRow(theme, Icons.healing_outlined, 'Diagnosis', result.diagnosis, isDark),
+          if (result.followUp.isNotEmpty)
+            _buildOverviewRow(theme, Icons.event_repeat_outlined, 'Follow-up', result.followUp, isDark),
+        ],
       ),
     );
   }
 
-  Widget _buildOverviewRow(ThemeData theme, IconData icon, String label, String value) {
+  Widget _buildOverviewRow(ThemeData theme, IconData icon, String label, String value, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: theme.colorScheme.secondary),
+          Icon(icon, size: 20, color: AppTheme.primaryColor),
           const SizedBox(width: 12),
           Text(
             '$label: ',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurfaceVariant),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54),
           ),
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.outfit(color: theme.colorScheme.onSurface),
+              style: GoogleFonts.outfit(color: isDark ? Colors.white : Colors.black87),
             ),
           ),
         ],
@@ -1003,11 +1011,12 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
   }
 
   Widget _buildMedicineCard(ThemeData theme, MedicineModel med) {
-    return Card(
-      elevation: 1,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
+    final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: GlassContainer(
+        isDarkMode: isDark,
+        borderRadius: 16,
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1015,8 +1024,8 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Icon(Icons.medication, color: theme.colorScheme.primary),
+                  backgroundColor: AppTheme.primaryColor.withOpacity(0.15),
+                  child: Icon(Icons.medication, color: AppTheme.primaryColor),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1028,6 +1037,7 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
                         style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
                       if (med.strength.isNotEmpty) ...[
@@ -1036,7 +1046,7 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
                           'Strength: ${med.strength}',
                           style: GoogleFonts.outfit(
                             fontSize: 13,
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: isDark ? Colors.white70 : Colors.black54,
                           ),
                         ),
                       ],
@@ -1078,19 +1088,20 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
   }
 
   Widget _buildMedicineDetailItem(ThemeData theme, IconData icon, String title, String val) {
+    final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 16, color: theme.colorScheme.secondary),
+            Icon(icon, size: 16, color: AppTheme.secondaryColor),
             const SizedBox(width: 6),
             Text(
               title,
               style: GoogleFonts.outfit(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurfaceVariant,
+                color: isDark ? Colors.white70 : Colors.black54,
               ),
             ),
           ],
@@ -1102,7 +1113,7 @@ class _PrescriptionReaderScreenState extends State<PrescriptionReaderScreen> {
             val,
             style: GoogleFonts.outfit(
               fontSize: 14,
-              color: theme.colorScheme.onSurface,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
         ),

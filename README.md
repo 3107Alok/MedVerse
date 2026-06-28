@@ -72,6 +72,14 @@ Our universal medical document analyzer automatically classifies and parses 5 di
 ### 4. AI Chatbot
 Interactive medical chatbot panel utilizing Gemini AI to query symptoms, medicine interactions, and nutritional guidance securely.
 
+### 5. Advanced Authentication & UI Upgrades
+*   **Mandatory Email Verification**: Prevents unverified registrations from polluting the database. Upon signup, users receive a verification link and are auto-signed out. The app verifies `emailVerified` on login, launching a premium glassmorphic verification dialog if verification is incomplete.
+*   **Lazy Firestore Creation**: The Firestore user document is created only after the user's email has been verified and they log in for the first time.
+*   **Secure Password Reset**: Built-in glassmorphic forgot password panel linked with Firebase `sendPasswordResetEmail()`.
+*   **Premium Glassmorphic Theme & Accents**: Vibrant purple accents matched dynamically across light/dark modes with beautiful glowing Custom Paint background circles on dashboard cards.
+*   **Responsive Login Layout**: Built with a flexible layout architecture that adapts beautifully to different device sizes and open soft keyboards, preventing vertical screen clipping.
+*   **Sleek 3D App Icon**: Installed a premium custom 3D glowing shield launch icon for mobile configurations.
+
 ---
 
 ## 🛡️ Security & Access Authorization

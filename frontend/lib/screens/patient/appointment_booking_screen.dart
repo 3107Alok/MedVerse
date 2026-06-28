@@ -5,6 +5,10 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:frontend/services/auth_provider.dart';
 import 'package:frontend/services/booking_service.dart';
+import 'package:frontend/theme/theme_notifier.dart';
+import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
 
 class AppointmentBookingScreen extends StatefulWidget {
   const AppointmentBookingScreen({super.key});
@@ -213,23 +217,34 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+    final isDark = Provider.of<ThemeNotifier>(context).isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Book Appointment')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+      backgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.white,
+      appBar: AppBar(
+        title: Text('Book Appointment', style: GoogleFonts.outfit(color: textColor, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.getBackgroundGradient(isDark),
+        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Select Doctor', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('Select Doctor', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
                     const SizedBox(height: 12),
                     _doctors.isEmpty 
-                      ? const Text('No verified doctors found.')
+                      ? Text('No verified doctors found.', style: GoogleFonts.outfit(color: textColor))
                       : SizedBox(
                           height: 140,
                           child: ListView.builder(
@@ -251,24 +266,17 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                                   });
                                   _updateAvailableSlots();
                                 },
-                                child: Container(
-                                  width: 130,
-                                  margin: const EdgeInsets.only(right: 12),
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? theme.primaryColor : Colors.white,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: isSelected ? Colors.transparent : Colors.grey[300]!),
-                                    boxShadow: isSelected ? [
-                                      BoxShadow(
-                                        color: theme.primaryColor.withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ] : null,
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
+                                  child: GlassContainer(
+                                    width: 130,
+                                    margin: const EdgeInsets.only(right: 12),
+                                    isDarkMode: isDark,
+                                    borderRadius: 16,
+                                    border: isSelected ? Border.all(color: AppTheme.primaryColor, width: 2) : null,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
                                       const CircleAvatar(radius: 20, child: Icon(Icons.person)),
                                       const SizedBox(height: 6),
                                       Text(
@@ -278,7 +286,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.outfit(
                                           fontSize: 12,
-                                          color: isSelected ? Colors.white : Colors.black,
+                                          color: textColor,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -287,7 +295,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                                         textAlign: TextAlign.center,
                                         style: GoogleFonts.outfit(
                                           fontSize: 10,
-                                          color: isSelected ? Colors.white70 : Colors.grey[600],
+                                          color: isDark ? Colors.white70 : Colors.black54,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -318,22 +326,21 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                                     ],
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            );
+                          },
                           ),
                         ),
                     const SizedBox(height: 28),
                     
-                    Text('Select Date', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('Select Date', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
                     const SizedBox(height: 12),
-                    ListTile(
-                      tileColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      title: Text(DateFormat('EEEE, MMM d, yyyy').format(_selectedDate)),
-                      trailing: const Icon(Icons.calendar_today),
+                    GlassContainer(
+                      isDarkMode: isDark,
+                      borderRadius: 16,
+                      child: ListTile(
+                        title: Text(DateFormat('EEEE, MMM d, yyyy').format(_selectedDate), style: GoogleFonts.outfit(color: textColor)),
+                        trailing: Icon(Icons.calendar_today, color: AppTheme.primaryColor),
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
@@ -349,9 +356,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                         }
                       },
                     ),
+                    ),
                     const SizedBox(height: 28),
 
-                    Text('Select Time Slot', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('Select Time Slot', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
                     const SizedBox(height: 12),
                     
                     if (_selectedDoctorId == null)
@@ -378,15 +386,20 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                       ),
                     const SizedBox(height: 28),
 
-                    Text('Symptoms / Reason for Visit', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('Symptoms / Reason for Visit', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _symptomsController,
+                      style: GoogleFonts.outfit(color: textColor),
                       decoration: InputDecoration(
                         hintText: 'Enter symptoms (e.g. Fever, Headache, Cold...)',
-                        prefixIcon: const Icon(Icons.health_and_safety_outlined),
+                        hintStyle: GoogleFonts.outfit(color: isDark ? Colors.white54 : Colors.grey[500]),
+                        prefixIcon: Icon(Icons.health_and_safety_outlined, color: AppTheme.primaryColor),
+                        filled: true,
+                        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
                         ),
                       ),
                       maxLines: 2,
@@ -407,6 +420,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                 ),
               ),
             ),
+      ),
     );
   }
 }

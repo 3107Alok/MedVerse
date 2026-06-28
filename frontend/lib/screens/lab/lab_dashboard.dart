@@ -11,6 +11,9 @@ import 'package:frontend/services/auth_provider.dart';
 import 'package:frontend/theme/theme_notifier.dart';
 import 'package:frontend/models/lab_profile_model.dart';
 import 'package:frontend/services/lab_service.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
+import 'package:frontend/theme/app_theme.dart';
 
 class LabDashboard extends StatefulWidget {
   const LabDashboard({super.key});
@@ -34,9 +37,13 @@ class _LabDashboardState extends State<LabDashboard> {
       const LabProfileTab(key: ValueKey('tab_profile')),
     ];
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.getBackgroundGradient(isDark),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
         title: Text(
           'MediNexa Lab',
           style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
@@ -45,40 +52,42 @@ class _LabDashboardState extends State<LabDashboard> {
         backgroundColor: isDark ? const Color(0xFF1E1E2E) : Colors.transparent,
         actions: [
           IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: isDark ? Colors.amber : Colors.blueGrey,
+            icon: Icon(Icons.settings_outlined, color: isDark ? Colors.white : AppTheme.secondaryColor),
+            onPressed: () => showGlassSettingsModal(
+              context,
+              isDark,
+              () => themeNotifier.toggleDarkMode(),
+              () => Provider.of<AuthProvider>(context, listen: false).signOut(),
             ),
-            onPressed: () => themeNotifier.toggleDarkMode(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => Provider.of<AuthProvider>(context, listen: false).signOut(),
           ),
         ],
       ),
       body: SafeArea(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: tabs[_currentIndex],
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+          child: KeyedSubtree(
+            key: ValueKey(_currentIndex),
+            child: tabs[_currentIndex],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, '/chatbot'),
-        backgroundColor: isDark ? const Color(0xFFBB86FC) : Colors.purple,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         tooltip: 'AI Chatbot',
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.smart_toy_outlined),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: GlassBottomNav(
         currentIndex: _currentIndex,
         onTap: (index) {
-          debugPrint('LabDashboard: BottomNavigationBar onTap: index = $index');
+          debugPrint('LabDashboard: GlassBottomNav onTap: index = $index');
           setState(() => _currentIndex = index);
         },
-        selectedItemColor: isDark ? const Color(0xFFBB86FC) : Colors.purple,
-        unselectedItemColor: isDark ? Colors.white60 : Colors.grey[600],
-        backgroundColor: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+        isDarkMode: isDark,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
@@ -97,6 +106,7 @@ class _LabDashboardState extends State<LabDashboard> {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -302,12 +312,11 @@ class _LabDashboardTabState extends State<LabDashboardTab> {
   }
 
   Widget _buildStatCard(String label, String value, Color color, IconData icon, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E2E) : color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? color.withOpacity(0.3) : color.withOpacity(0.2)),
-      ),
+    return GlassContainer(
+      isDarkMode: isDark,
+      borderRadius: 16,
+      showAccentCircle: true,
+      border: Border.all(color: isDark ? color.withValues(alpha: 0.3) : color.withValues(alpha: 0.2)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -588,7 +597,7 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
                   fillColor: isDark ? const Color(0xFF1E1E2E) : Colors.white,
                   filled: true,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('All Tests')),
@@ -714,17 +723,16 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
         final symptoms = b['symptoms'] ?? 'No comments';
         final pdfUrl = b['reportFileId'];
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GlassContainer(
+            isDarkMode: isDark,
+            borderRadius: 16,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -837,7 +845,9 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
               ),
             ],
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }
@@ -1046,13 +1056,10 @@ class _LabProfileTabState extends State<LabProfileTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Lab Identity Card
-          Container(
+          GlassContainer(
+            isDarkMode: isDark,
+            borderRadius: 20,
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1084,13 +1091,15 @@ class _LabProfileTabState extends State<LabProfileTab> {
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 12),
-                _buildInfoRow(Icons.phone, _profile!.phone, textColor),
+                _buildInfoRow(Icons.phone, _profile!.phone, textColor, isDark: isDark, onEdit: () {}),
                 const SizedBox(height: 10),
-                _buildInfoRow(Icons.email, _profile!.email, textColor),
+                _buildInfoRow(Icons.email, _profile!.email, textColor, isDark: isDark, onEdit: () {}),
                 const SizedBox(height: 10),
-                _buildInfoRow(Icons.location_on, _profile!.address, textColor),
+                _buildInfoRow(Icons.location_on, _profile!.address.isEmpty ? 'Add Address' : _profile!.address, textColor, isDark: isDark, onEdit: () {}),
                 const SizedBox(height: 10),
-                _buildInfoRow(Icons.access_time, 'Hours: ${_profile!.openingTime} - ${_profile!.closingTime}', textColor),
+                _buildInfoRow(Icons.access_time, 'Hours: ${_profile!.openingTime} - ${_profile!.closingTime}', textColor, isDark: isDark, onEdit: () {}),
+                const SizedBox(height: 10),
+                _buildInfoRow(Icons.event_available, _profile!.homeCollection ? 'Home Collection Available' : 'No Home Collection', textColor, isDark: isDark, onEdit: () {}),
                 const SizedBox(height: 14),
                 Row(
                   children: [
@@ -1151,17 +1160,10 @@ class _LabProfileTabState extends State<LabProfileTab> {
               final currentDetail = _profile!.services[testName];
               final isOffered = currentDetail?.enabled ?? false;
 
-              return Container(
+              return GlassContainer(
+                isDarkMode: isDark,
                 margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isOffered
-                        ? (isDark ? Colors.purple.withOpacity(0.5) : Colors.purple.withOpacity(0.3))
-                        : (isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-                  ),
-                ),
+                borderRadius: 16,
                 child: ListTile(
                   title: Text(
                     testFull,
@@ -1190,18 +1192,23 @@ class _LabProfileTabState extends State<LabProfileTab> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text, Color textColor) {
+  Widget _buildInfoRow(IconData icon, String text, Color textColor, {bool isDark = false, VoidCallback? onEdit}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Colors.grey),
+        Icon(icon, size: 18, color: AppTheme.primaryColor),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: GoogleFonts.outfit(fontSize: 13, color: textColor),
+            style: GoogleFonts.outfit(fontSize: 14, color: textColor),
           ),
         ),
+        if (onEdit != null)
+          InkWell(
+            onTap: onEdit,
+            child: Icon(Icons.edit_outlined, size: 18, color: isDark ? Colors.white60 : Colors.grey[600]),
+          ),
       ],
     );
   }

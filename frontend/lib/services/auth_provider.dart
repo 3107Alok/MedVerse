@@ -8,10 +8,16 @@ class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   UserModel? _user;
   bool _isLoading = true; // Start with loading while checking initial auth state
+  String? _errorMessage;
 
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null;
+  String? get errorMessage => _errorMessage;
+
+  void clearErrorMessage() {
+    _errorMessage = null;
+  }
 
   AuthProvider() {
     _authService.user.listen((firebaseUser) async {
@@ -24,6 +30,16 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
 
         try {
+          await firebaseUser.reload();
+          final freshUser = FirebaseAuth.instance.currentUser;
+          if (freshUser != null && !freshUser.emailVerified) {
+            // Unverified user shouldn't be logged in
+            _user = null;
+            _isLoading = false;
+            notifyListeners();
+            return;
+          }
+
           final doc = await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).get();
           if (doc.exists && doc.data() != null) {
             final data = doc.data()!;
@@ -54,39 +70,108 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  String getFirebaseAuthErrorMessage(dynamic e) {
+    if (e is FirebaseAuthException) {
+      switch (e.code) {
+        case 'email-already-in-use':
+          return 'The email address is already in use by another account.';
+        case 'weak-password':
+          return 'The password is too weak. Please use a stronger password.';
+        case 'invalid-email':
+          return 'The email address is badly formatted.';
+        case 'user-disabled':
+          return 'This user account has been disabled.';
+        case 'user-not-found':
+          return 'No user found for that email address.';
+        case 'wrong-password':
+          return 'Incorrect password. Please try again.';
+        case 'too-many-requests':
+          return 'Too many login attempts. Please try again later.';
+        case 'network-request-failed':
+          return 'Network unavailable. Please check your connection.';
+        case 'email-not-verified':
+          return 'Please verify your email address before logging in.';
+        default:
+          return e.message ?? 'Authentication failed.';
+      }
+    }
+    return e.toString();
+  }
+
   Future<bool> signUp({
     required String email,
     required String password,
     required String name,
   }) async {
     _setLoading(true);
-    _user = await _authService.signUp(
-      email: email,
-      password: password,
-      name: name,
-    );
-    _setLoading(false);
-    return _user != null;
+    _errorMessage = null;
+    try {
+      _user = await _authService.signUp(
+        email: email,
+        password: password,
+        name: name,
+      );
+      final success = _user != null;
+      // Force user state to null since email is not verified yet
+      _user = null;
+      _setLoading(false);
+      return success;
+    } catch (e) {
+      _errorMessage = getFirebaseAuthErrorMessage(e);
+      _user = null;
+      _setLoading(false);
+      return false;
+    }
   }
 
   Future<bool> signIn(String email, String password) async {
     _setLoading(true);
-    _user = await _authService.signIn(email, password);
-    _setLoading(false);
-    return _user != null;
+    _errorMessage = null;
+    try {
+      _user = await _authService.signIn(email, password);
+      _setLoading(false);
+      return _user != null;
+    } catch (e) {
+      _errorMessage = getFirebaseAuthErrorMessage(e);
+      _user = null;
+      _setLoading(false);
+      return false;
+    }
   }
 
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
-    _user = await _authService.signInWithGoogle();
-    _setLoading(false);
-    return _user != null;
+    _errorMessage = null;
+    try {
+      _user = await _authService.signInWithGoogle();
+      _setLoading(false);
+      return _user != null;
+    } catch (e) {
+      _errorMessage = getFirebaseAuthErrorMessage(e);
+      _user = null;
+      _setLoading(false);
+      return false;
+    }
   }
 
   Future<void> signOut() async {
     await _authService.signOut();
     _user = null;
     notifyListeners();
+  }
+
+  Future<bool> sendPasswordResetEmail(String email) async {
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      await _authService.sendPasswordResetEmail(email);
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _errorMessage = getFirebaseAuthErrorMessage(e);
+      _setLoading(false);
+      return false;
+    }
   }
 
   Future<bool> completePatientProfile({

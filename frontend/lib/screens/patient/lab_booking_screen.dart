@@ -9,6 +9,9 @@ import 'package:frontend/services/auth_provider.dart';
 import 'package:frontend/theme/theme_notifier.dart';
 import 'package:frontend/models/lab_profile_model.dart';
 import 'package:frontend/services/lab_service.dart';
+import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
 
 class LabBookingScreen extends StatefulWidget {
   final String? selectedTest;
@@ -190,11 +193,19 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
     final subtitleColor = isDark ? Colors.white60 : Colors.grey[700];
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.white,
       appBar: AppBar(
-        title: Text('Book Lab Test', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Book Lab Test', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.getBackgroundGradient(isDark),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
@@ -203,9 +214,18 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
               // 1. Select Test
               DropdownButtonFormField<String>(
                 value: _selectedTest,
-                decoration: const InputDecoration(
+                style: GoogleFonts.outfit(color: textColor),
+                dropdownColor: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+                decoration: InputDecoration(
                   labelText: 'Select Diagnostic Test',
-                  prefixIcon: Icon(Icons.science),
+                  labelStyle: GoogleFonts.outfit(color: subtitleColor),
+                  prefixIcon: Icon(Icons.science, color: AppTheme.primaryColor),
+                  filled: true,
+                  fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
                 items: _labService.getPredefinedTests().map((t) {
                   return DropdownMenuItem(value: t, child: Text(t));
@@ -222,12 +242,21 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
               // 2. Select Date
               TextFormField(
                 readOnly: true,
+                style: GoogleFonts.outfit(color: textColor),
                 decoration: InputDecoration(
                   labelText: 'Choose Booking Date',
-                  prefixIcon: const Icon(Icons.calendar_today),
+                  labelStyle: GoogleFonts.outfit(color: subtitleColor),
+                  prefixIcon: Icon(Icons.calendar_today, color: AppTheme.primaryColor),
+                  filled: true,
+                  fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
                   hintText: _selectedDate == null
                       ? 'Select date'
                       : DateFormat('EEEE, MMMM dd, yyyy').format(_selectedDate!),
+                  hintStyle: GoogleFonts.outfit(color: textColor),
                 ),
                 onTap: () async {
                   final picked = await showDatePicker(
@@ -268,18 +297,11 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
                               final testKey = _selectedTest!.split(' (').first;
                               final detail = lab.services[testKey];
 
-                              return Container(
+                              return GlassContainer(
+                                isDarkMode: isDark,
+                                borderRadius: 16,
                                 margin: const EdgeInsets.only(bottom: 12),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? theme.primaryColor
-                                        : (isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-                                    width: isSelected ? 2 : 1,
-                                  ),
-                                ),
+                                border: isSelected ? Border.all(color: AppTheme.primaryColor, width: 2) : null,
                                 child: InkWell(
                                   onTap: () {
                                     setState(() => _selectedLab = lab);
@@ -407,6 +429,7 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

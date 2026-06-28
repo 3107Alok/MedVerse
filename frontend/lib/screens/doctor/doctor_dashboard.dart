@@ -10,6 +10,9 @@ import 'package:frontend/models/user_model.dart';
 import 'package:frontend/screens/doctor/patient_details_screen.dart';
 import 'package:frontend/screens/doctor/history_screen.dart';
 import 'package:frontend/theme/theme_notifier.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
+import 'package:frontend/theme/app_theme.dart';
 
 class DoctorDashboard extends StatefulWidget {
   const DoctorDashboard({super.key});
@@ -41,9 +44,13 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
 
     final scaffoldBg = _isDarkMode ? const Color(0xFF0F0F1A) : Colors.white;
 
-    return Scaffold(
-      backgroundColor: scaffoldBg,
-      appBar: AppBar(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.getBackgroundGradient(_isDarkMode),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
         backgroundColor: _isDarkMode ? const Color(0xFF1E1E2E) : Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: _isDarkMode ? Colors.white : Colors.black87),
@@ -57,37 +64,46 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
         ),
         actions: [
           IconButton(
-            icon: Icon(
-              _isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: _isDarkMode ? Colors.amber : Colors.blueGrey,
+            icon: Icon(Icons.settings_outlined, color: _isDarkMode ? Colors.white : AppTheme.secondaryColor),
+            onPressed: () => showGlassSettingsModal(
+              context,
+              _isDarkMode,
+              () => themeNotifier.toggleDarkMode(),
+              () => authProvider.signOut(),
             ),
-            onPressed: () => themeNotifier.toggleDarkMode(),
-          ),
-          IconButton(
-            icon: Icon(Icons.notifications_none_outlined, color: _isDarkMode ? Colors.white : Colors.black87),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications coming soon!')),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, color: _isDarkMode ? Colors.white : Colors.black87),
-            onPressed: () => authProvider.signOut(),
           ),
         ],
       ),
       body: SafeArea(
-        child: tabs[_currentIndex],
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+          child: KeyedSubtree(
+            key: ValueKey(_currentIndex),
+            child: tabs[_currentIndex],
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, '/chatbot'),
-        backgroundColor: _isDarkMode ? const Color(0xFFBB86FC) : Colors.purple,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         tooltip: 'AI Chatbot',
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.smart_toy_outlined),
       ),
-      bottomNavigationBar: _buildGlassmorphicBottomNav(context),
+      bottomNavigationBar: GlassBottomNav(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        isDarkMode: _isDarkMode,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'Appointments'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    ),
     );
   }
 
@@ -455,60 +471,53 @@ class _DoctorHomeTabState extends State<DoctorHomeTab> {
           // 3. AI Assistant Section
           Text('AI Health Assistant', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
           const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 2.2,
-            children: [
-              _buildAIActionButton(Icons.chat_bubble_outline, 'Medical Chat', isDark),
-              _buildAIActionButton(Icons.analytics_outlined, 'Lab Report Analysis', isDark),
-              _buildAIActionButton(Icons.description_outlined, 'Prescription Analysis', isDark),
-              _buildAIActionButton(Icons.tips_and_updates_outlined, 'Clinical Suggestions', isDark),
-            ],
-          ),
+          _buildAIActionButton(Icons.document_scanner_outlined, 'MediDoc Analyze', isDark),
         ],
       ),
     );
   }
 
   Widget _buildAIActionButton(IconData icon, String label, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(color: isDark ? Colors.black38 : Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
-      ),
+    return GlassContainer(
+      isDarkMode: isDark,
+      borderRadius: 16,
       child: InkWell(
         onTap: () {
-          if (label == 'Medical Chat') {
-            Navigator.pushNamed(context, '/chatbot');
-          } else if (label == 'Lab Report Analysis') {
-            Navigator.pushNamed(context, '/lab-reports');
-          } else if (label == 'Prescription Analysis') {
+          if (label == 'MediDoc Analyze') {
             Navigator.pushNamed(context, '/ocr-reader');
-          } else if (label == 'Clinical Suggestions') {
-            Navigator.pushNamed(context, '/chatbot');
           }
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
-              Icon(icon, color: isDark ? Colors.purple[300] : Colors.purple[800], size: 22),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: AppTheme.primaryColor, size: 28),
+              ),
+              const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  label,
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey[800]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppTheme.secondaryColor),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'AI-powered prescription OCR',
+                      style: GoogleFonts.outfit(fontSize: 13, color: isDark ? Colors.white70 : Colors.grey[600]),
+                    ),
+                  ],
                 ),
               ),
+              Icon(Icons.chevron_right, color: isDark ? Colors.white54 : Colors.grey[400]),
             ],
           ),
         ),
@@ -517,37 +526,30 @@ class _DoctorHomeTabState extends State<DoctorHomeTab> {
   }
 
   Widget _buildStatSummaryCard(String label, String value, Color color, IconData icon, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E2E) : color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? color.withOpacity(0.3) : color.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(color: isDark ? Colors.black38 : Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+    return GlassContainer(
+      isDarkMode: isDark,
+      borderRadius: 16,
+      showAccentCircle: true,
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: color, size: 24),
+              Text(
+                value,
+                style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: isDark ? Colors.white : color),
+              ),
+            ],
+          ),
+          Text(
+            label,
+            style: GoogleFonts.outfit(fontSize: 13, color: isDark ? Colors.white70 : Colors.grey[700], fontWeight: FontWeight.w500),
+          ),
         ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color, size: 20),
-                Text(
-                  value,
-                  style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: color),
-                ),
-              ],
-            ),
-            Text(
-              label,
-              style: GoogleFonts.outfit(fontSize: 12, color: isDark ? Colors.white70 : Colors.grey[700], fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -772,16 +774,12 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
               final id = appt['id'] ?? '';
               final isSelected = _selectedPendingIds.contains(id);
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isSelected ? theme.primaryColor : (isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!)),
-                  boxShadow: [
-                    BoxShadow(color: isDark ? Colors.black38 : Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-                  ],
-                ),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: GlassContainer(
+                  isDarkMode: isDark,
+                  borderRadius: 16,
+                  border: isSelected ? Border.all(color: theme.primaryColor, width: 2) : null,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -927,8 +925,9 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
                     ],
                   ),
                 ),
-              );
-            },
+              ),
+            );
+          },
           ),
         ),
       ],
@@ -961,16 +960,12 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
         final status = appt['status']?.toString().toLowerCase() ?? 'approved';
         final isCheckedIn = status == 'checked_in';
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isCheckedIn ? (isDark ? Colors.green[700]! : Colors.green) : (isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!)),
-            boxShadow: [
-              BoxShadow(color: isDark ? Colors.black38 : Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-            ],
-          ),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GlassContainer(
+            isDarkMode: isDark,
+            borderRadius: 16,
+            border: isCheckedIn ? Border.all(color: isDark ? Colors.green[700]! : Colors.green, width: 2) : null,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1055,6 +1050,7 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
                   ],
                 ),
               ],
+            ),
             ),
           ),
         );
@@ -1184,15 +1180,9 @@ class _DoctorProfileTabState extends State<DoctorProfileTab> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Doctor Profile Header
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-                boxShadow: [
-                  BoxShadow(color: isDark ? Colors.black38 : Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
+            GlassContainer(
+              isDarkMode: isDark,
+              borderRadius: 16,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -1235,15 +1225,9 @@ class _DoctorProfileTabState extends State<DoctorProfileTab> {
             const SizedBox(height: 20),
 
             // Online Switch & Fee Card
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-                boxShadow: [
-                  BoxShadow(color: isDark ? Colors.black38 : Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
+            GlassContainer(
+              isDarkMode: isDark,
+              borderRadius: 16,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -1295,15 +1279,9 @@ class _DoctorProfileTabState extends State<DoctorProfileTab> {
             // Availability Settings Card
             Text('Availability Configuration', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-                boxShadow: [
-                  BoxShadow(color: isDark ? Colors.black38 : Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
+            GlassContainer(
+              isDarkMode: isDark,
+              borderRadius: 16,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

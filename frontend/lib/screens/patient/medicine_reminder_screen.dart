@@ -5,6 +5,10 @@ import 'package:frontend/services/reminder_service.dart';
 
 import 'package:provider/provider.dart';
 import 'package:frontend/services/auth_provider.dart';
+import 'package:frontend/theme/theme_notifier.dart';
+import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
 
 class MedicineReminderScreen extends StatefulWidget {
   const MedicineReminderScreen({super.key});
@@ -81,33 +85,52 @@ class _MedicineReminderScreenState extends State<MedicineReminderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<ThemeNotifier>(context).isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white60 : Colors.grey[700];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Medicine Reminders')),
+      backgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.white,
+      appBar: AppBar(
+        title: Text('Medicine Reminders', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(),
-        child: const Icon(Icons.add),
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
-      body: _isLoading 
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.getBackgroundGradient(isDark),
+        ),
+        child: _isLoading 
         ? const Center(child: CircularProgressIndicator())
         : _reminders.isEmpty
-          ? const Center(child: Text('No reminders set.'))
+          ? Center(child: Text('No reminders set.', style: GoogleFonts.outfit(color: subtitleColor)))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _reminders.length,
               itemBuilder: (context, index) {
                 final r = _reminders[index];
-                return Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.medication)),
-                    title: Text(r['medicine_name'], style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Scheduled for ${r['time']}'),
-                    trailing: const Icon(Icons.notifications_active, color: Colors.orange),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GlassContainer(
+                    isDarkMode: isDark,
+                    borderRadius: 16,
+                    child: ListTile(
+                      leading: const CircleAvatar(backgroundColor: AppTheme.primaryColor, child: Icon(Icons.medication, color: Colors.white)),
+                      title: Text(r['medicine_name'], style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor)),
+                      subtitle: Text('Scheduled for ${r['time']}', style: GoogleFonts.outfit(color: subtitleColor)),
+                      trailing: const Icon(Icons.notifications_active, color: Colors.orange),
+                    ),
                   ),
                 );
               },
             ),
+      ),
     );
   }
 

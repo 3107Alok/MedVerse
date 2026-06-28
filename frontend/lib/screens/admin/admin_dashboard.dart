@@ -8,6 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:frontend/services/auth_provider.dart';
 import 'package:frontend/services/admin_service.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
+import 'package:frontend/theme/app_theme.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -42,9 +45,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     final scaffoldBg = _isDarkMode ? const Color(0xFF0F0F1A) : Colors.white;
 
-    return Scaffold(
-      backgroundColor: scaffoldBg,
-      appBar: AppBar(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.getBackgroundGradient(_isDarkMode),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
         backgroundColor: _isDarkMode ? const Color(0xFF1E1E2E) : Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: _isDarkMode ? Colors.white : Colors.black87),
@@ -58,139 +65,50 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
         actions: [
           IconButton(
-            icon: Icon(
-              _isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: _isDarkMode ? Colors.amber : Colors.blueGrey,
+            icon: Icon(Icons.settings_outlined, color: _isDarkMode ? Colors.white : AppTheme.secondaryColor),
+            onPressed: () => showGlassSettingsModal(
+              context,
+              _isDarkMode,
+              () {
+                setState(() {
+                  _isDarkMode = !_isDarkMode;
+                });
+              },
+              () => authProvider.signOut(),
             ),
-            onPressed: () {
-              setState(() {
-                _isDarkMode = !_isDarkMode;
-              });
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.notifications_none_outlined, color: _isDarkMode ? Colors.white : Colors.black87),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications coming soon!')),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, color: _isDarkMode ? Colors.white : Colors.black87),
-            onPressed: () => authProvider.signOut(),
           ),
         ],
       ),
       body: SafeArea(
-        child: tabs[_currentIndex],
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+          child: KeyedSubtree(
+            key: ValueKey(_currentIndex),
+            child: tabs[_currentIndex],
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, '/chatbot'),
-        backgroundColor: _isDarkMode ? const Color(0xFFBB86FC) : Colors.purple,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         tooltip: 'AI Chatbot',
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.smart_toy_outlined),
       ),
-      bottomNavigationBar: _buildGlassmorphicBottomNav(context),
-    );
-  }
-
-  Widget _buildGlassmorphicBottomNav(BuildContext context) {
-    final theme = Theme.of(context);
-    final navBg = _isDarkMode ? const Color(0xFF1E1E2E).withOpacity(0.85) : Colors.white.withOpacity(0.85);
-    final borderColor = _isDarkMode ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.4);
-    final shadowColor = _isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.06);
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          height: 70,
-          decoration: BoxDecoration(
-            color: navBg,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(
-              color: borderColor,
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: shadowColor,
-                blurRadius: 20,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Center(
-                  child: _buildNavItem(Icons.dashboard_outlined, Icons.dashboard, 'Dashboard', 0, theme),
-                ),
-              ),
-              Expanded(
-                child: Center(
-                  child: _buildNavItem(Icons.grid_view_outlined, Icons.grid_view, 'Management', 1, theme),
-                ),
-              ),
-              Expanded(
-                child: Center(
-                  child: _buildNavItem(Icons.person_outline, Icons.person, 'Profile', 2, theme),
-                ),
-              ),
-            ],
-          ),
-        ),
+      bottomNavigationBar: GlassBottomNav(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        isDarkMode: _isDarkMode,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), activeIcon: Icon(Icons.grid_view), label: 'Management'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        ],
       ),
-    );
-  }
-
-  Widget _buildNavItem(IconData unselectedIcon, IconData selectedIcon, String label, int index, ThemeData theme) {
-    final isSelected = _currentIndex == index;
-    final activeColor = _isDarkMode ? Colors.cyanAccent : theme.primaryColor;
-    final inactiveColor = _isDarkMode ? Colors.grey[400] : Colors.grey[600];
-    final itemBg = isSelected
-        ? activeColor.withOpacity(0.12)
-        : Colors.transparent;
-
-    return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: itemBg,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isSelected ? selectedIcon : unselectedIcon,
-                color: isSelected ? activeColor : inactiveColor,
-                size: 24,
-              ),
-              if (isSelected) ...[
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: GoogleFonts.outfit(
-                    color: activeColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    ),
     );
   }
 }
@@ -424,7 +342,7 @@ class _AdminHomeTabState extends State<AdminHomeTab> {
                           Expanded(
                             child: _buildActionCard(
                               context,
-                              '🩺 Medoc Analyze',
+                              'MediDoc Analyze',
                               'OCR & AI Report Reader',
                               Colors.teal,
                               const [Color(0xFF009688), Color(0xFF00BFA5)],
@@ -436,7 +354,7 @@ class _AdminHomeTabState extends State<AdminHomeTab> {
                           Expanded(
                             child: _buildActionCard(
                               context,
-                              '🤖 AI Assistant',
+                              'AI Assistant',
                               'Symptom chatbot',
                               Colors.blue,
                               const [Color(0xFF2196F3), Color(0xFF00BCD4)],
@@ -610,7 +528,7 @@ class _AdminHomeTabState extends State<AdminHomeTab> {
             SizedBox(height: isSmallScreen ? 10 : 16),
             Text(
               title,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.outfit(
                 fontWeight: FontWeight.bold,
@@ -771,7 +689,7 @@ class AdminManagementTab extends StatelessWidget {
                     Expanded(
                       child: _buildGridCard(
                         context,
-                        '👨‍⚕️ Doctors',
+                        'Doctors',
                         'Verify & manage doctor roster',
                         Colors.purple,
                         Icons.people_alt_outlined,
@@ -782,7 +700,7 @@ class AdminManagementTab extends StatelessWidget {
                     Expanded(
                       child: _buildGridCard(
                         context,
-                        '🧑 Patients',
+                        'Patients',
                         'View & moderate patient accounts',
                         Colors.blue,
                         Icons.person_search_outlined,
@@ -800,7 +718,7 @@ class AdminManagementTab extends StatelessWidget {
                     Expanded(
                       child: _buildGridCard(
                         context,
-                        '📅 Appointments',
+                        'Appointments',
                         'Read-only consultation logs',
                         Colors.teal,
                         Icons.calendar_today_outlined,
@@ -811,7 +729,7 @@ class AdminManagementTab extends StatelessWidget {
                     Expanded(
                       child: _buildGridCard(
                         context,
-                        '✅ Doctor Verification',
+                        'Doctor Verification',
                         'Pending credentials reviews',
                         Colors.orange,
                         Icons.verified_user_outlined,
@@ -829,7 +747,7 @@ class AdminManagementTab extends StatelessWidget {
                     Expanded(
                       child: _buildGridCard(
                         context,
-                        '🔬 Labs Verification',
+                        'Labs Verification',
                         'Approve or moderate lab rosters',
                         Colors.purple,
                         Icons.science_outlined,
@@ -852,25 +770,14 @@ class AdminManagementTab extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-        decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF252538).withOpacity(0.7) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey[200]!,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.02),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+    return GlassContainer(
+      isDarkMode: isDarkMode,
+      borderRadius: 20,
+      showAccentCircle: true,
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,

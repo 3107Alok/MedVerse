@@ -1,7 +1,13 @@
+import 'dart:ui' as dart_ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/models/chat_message.dart';
 import 'package:frontend/services/chat_service.dart';
+import 'package:provider/provider.dart';
+import 'package:frontend/theme/theme_notifier.dart';
+import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -135,16 +141,21 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = Provider.of<ThemeNotifier>(context).isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
     
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'AI Health Assistant',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 18),
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18, color: textColor),
             ),
             Row(
               children: [
@@ -152,14 +163,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: Colors.green,
+                    color: Colors.greenAccent,
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   'MediNexa AI is active',
-                  style: GoogleFonts.outfit(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                  style: GoogleFonts.outfit(fontSize: 12, color: isDark ? Colors.white70 : Colors.black54),
                 ),
               ],
             ),
@@ -171,37 +182,41 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               icon: const Icon(Icons.delete_sweep_outlined),
               tooltip: 'Clear Chat',
               onPressed: _clearChat,
+              color: textColor,
             ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _messages.isEmpty ? _buildEmptyState(theme) : _buildChatList(theme),
-          ),
-          _buildInputArea(theme),
-        ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.getBackgroundGradient(isDark),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: _messages.isEmpty ? _buildEmptyState(theme, isDark) : _buildChatList(theme, isDark),
+            ),
+            _buildInputArea(theme, isDark),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(ThemeData theme, bool isDark) {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
+            GlassContainer(
+              isDarkMode: isDark,
+              borderRadius: 40,
               padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withAlpha(50),
-                shape: BoxShape.circle,
-              ),
               child: Icon(
                 Icons.spatial_audio_off_outlined,
                 size: 64,
-                color: theme.colorScheme.primary,
+                color: AppTheme.primaryColor,
               ),
             ),
             const SizedBox(height: 24),
@@ -210,7 +225,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               style: GoogleFonts.outfit(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSurface,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
             const SizedBox(height: 12),
@@ -219,28 +234,24 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(
                 fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
+                color: isDark ? Colors.white70 : Colors.black54,
                 height: 1.4,
               ),
             ),
             const SizedBox(height: 32),
-            _buildSuggestionCard(theme, 'What is Paracetamol?', Icons.medication_outlined),
+            _buildSuggestionCard(theme, 'What is Paracetamol?', Icons.medication_outlined, isDark),
             const SizedBox(height: 12),
-            _buildSuggestionCard(theme, 'I have a headache and fever', Icons.healing_outlined),
+            _buildSuggestionCard(theme, 'I have a headache and fever', Icons.healing_outlined, isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSuggestionCard(ThemeData theme, String query, IconData icon) {
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant, width: 1),
-      ),
+  Widget _buildSuggestionCard(ThemeData theme, String query, IconData icon, bool isDark) {
+    return GlassContainer(
+      isDarkMode: isDark,
+      borderRadius: 16,
       child: InkWell(
         onTap: () {
           _controller.text = query;
@@ -251,19 +262,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
+              Icon(icon, size: 20, color: AppTheme.primaryColor),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   query,
                   style: GoogleFonts.outfit(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 14, color: theme.colorScheme.onSurfaceVariant),
+              Icon(Icons.arrow_forward_ios, size: 14, color: isDark ? Colors.white54 : Colors.black54),
             ],
           ),
         ),
@@ -271,21 +282,21 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
   }
 
-  Widget _buildChatList(ThemeData theme) {
+  Widget _buildChatList(ThemeData theme, bool isDark) {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: _messages.length + (_isLoading ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _messages.length) {
-          return _buildTypingIndicator(theme);
+          return _buildTypingIndicator(theme, isDark);
         }
-        return _buildMessageBubble(theme, _messages[index]);
+        return _buildMessageBubble(theme, _messages[index], isDark);
       },
     );
   }
 
-  Widget _buildMessageBubble(ThemeData theme, ChatMessage msg) {
+  Widget _buildMessageBubble(ThemeData theme, ChatMessage msg, bool isDark) {
     final bool isUser = msg.isUser;
     
     return Padding(
@@ -307,14 +318,21 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isUser 
-                    ? theme.colorScheme.primary 
-                    : theme.colorScheme.surfaceContainerHigh,
+                    ? AppTheme.primaryColor 
+                    : (isDark ? const Color(0xFF252538) : Colors.white),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
                   bottomLeft: Radius.circular(isUser ? 20 : 4),
                   bottomRight: Radius.circular(isUser ? 4 : 20),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark ? Colors.black26 : Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,7 +374,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
   }
 
-  Widget _buildTypingIndicator(ThemeData theme) {
+  Widget _buildTypingIndicator(ThemeData theme, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -405,44 +423,39 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
   }
 
-  Widget _buildInputArea(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: theme.colorScheme.outlineVariant, width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(),
-              style: GoogleFonts.outfit(fontSize: 15),
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                hintStyle: GoogleFonts.outfit(color: theme.colorScheme.onSurfaceVariant),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerLowest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  borderSide: BorderSide(color: theme.colorScheme.outlineVariant, width: 1),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  borderSide: BorderSide(color: theme.colorScheme.outlineVariant, width: 1),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
-                ),
-              ),
+  Widget _buildInputArea(ThemeData theme, bool isDark) {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: dart_ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E2E).withOpacity(0.85) : Colors.white.withOpacity(0.85),
+            border: Border(
+              top: BorderSide(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!, width: 1.5),
             ),
           ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _sendMessage(),
+                  style: GoogleFonts.outfit(fontSize: 15, color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    hintText: 'Type a message...',
+                    hintStyle: GoogleFonts.outfit(color: isDark ? Colors.white54 : Colors.grey[500]),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(28),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
           const SizedBox(width: 10),
           FloatingActionButton.small(
             onPressed: _sendMessage,
@@ -453,6 +466,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: const Icon(Icons.send),
           ),
         ],
+      ),
+      ),
       ),
     );
   }

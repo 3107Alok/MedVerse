@@ -24,6 +24,9 @@ class AuthService {
 
       if (user != null) {
         await user.updateDisplayName(name);
+        await user.sendEmailVerification();
+        await _auth.signOut(); // Sign out immediately
+
         final uid = user.uid;
         final userData = {
           'uid': uid,
@@ -31,16 +34,13 @@ class AuthService {
           'name': name,
           'role': null,
           'profileCompleted': false,
-          'createdAt': FieldValue.serverTimestamp(),
         };
-
-        await _db.collection("users").doc(uid).set(userData);
 
         return UserModel.fromJson(userData);
       }
       return null;
     } catch (e) {
-      return null;
+      rethrow;
     }
   }
 
@@ -53,16 +53,37 @@ class AuthService {
       User? user = result.user;
 
       if (user != null) {
+        await user.reload(); // Get latest verification status
+        final freshUser = _auth.currentUser;
+        if (freshUser != null && !freshUser.emailVerified) {
+          throw FirebaseAuthException(
+            code: 'email-not-verified',
+            message: 'Email verification is required.',
+          );
+        }
+
         final doc = await _db.collection('users').doc(user.uid).get();
         if (doc.exists && doc.data() != null) {
           final data = doc.data()!;
           data['uid'] = user.uid;
           return UserModel.fromJson(data);
+        } else {
+          // Create user document if it does not exist yet (first sign in after verification)
+          final userData = {
+            'uid': user.uid,
+            'email': email,
+            'name': user.displayName ?? '',
+            'role': null,
+            'profileCompleted': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          };
+          await _db.collection('users').doc(user.uid).set(userData);
+          return UserModel.fromJson(userData);
         }
       }
       return null;
     } catch (e) {
-      return null;
+      rethrow;
     }
   }
 
@@ -113,6 +134,10 @@ class AuthService {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
   }
 }
 

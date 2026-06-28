@@ -23,7 +23,9 @@ import 'package:frontend/screens/image_viewer_screen.dart';
 import 'package:frontend/models/user_model.dart';
 import 'package:frontend/theme/theme_notifier.dart';
 import 'package:frontend/screens/patient/lab_booking_screen.dart';
-
+import 'package:frontend/theme/glassmorphism.dart';
+import 'package:frontend/widgets/shared_glass_components.dart';
+import 'package:frontend/theme/app_theme.dart';
 class PatientDashboard extends StatefulWidget {
   const PatientDashboard({super.key});
 
@@ -59,9 +61,13 @@ class _PatientDashboardState extends State<PatientDashboard> {
 
     final scaffoldBg = isDarkMode ? const Color(0xFF0F0F1A) : Colors.white;
 
-    return Scaffold(
-      backgroundColor: scaffoldBg,
-      appBar: AppBar(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.getBackgroundGradient(isDarkMode),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
         backgroundColor: isDarkMode ? const Color(0xFF1E1E2E) : Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: isDarkMode ? Colors.white : Colors.black87),
@@ -75,23 +81,13 @@ class _PatientDashboardState extends State<PatientDashboard> {
         ),
         actions: [
           IconButton(
-            icon: Icon(
-              isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: isDarkMode ? Colors.amber : Colors.blueGrey,
+            icon: Icon(Icons.settings_outlined, color: isDarkMode ? Colors.white : AppTheme.secondaryColor),
+            onPressed: () => showGlassSettingsModal(
+              context,
+              isDarkMode,
+              () => themeNotifier.toggleDarkMode(),
+              () => authProvider.signOut(),
             ),
-            onPressed: () => themeNotifier.toggleDarkMode(),
-          ),
-          IconButton(
-            icon: Icon(Icons.notifications_none_outlined, color: isDarkMode ? Colors.white : Colors.black87),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications coming soon!')),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, color: isDarkMode ? Colors.white : Colors.black87),
-            onPressed: () => authProvider.signOut(),
           ),
         ],
       ),
@@ -107,88 +103,24 @@ class _PatientDashboardState extends State<PatientDashboard> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, '/chatbot'),
-        backgroundColor: isDarkMode ? const Color(0xFFBB86FC) : Colors.purple,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         tooltip: 'AI Chatbot',
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.smart_toy_outlined),
       ),
-      bottomNavigationBar: _buildGlassmorphicBottomNav(context, isDarkMode),
-    );
-  }
-
-  Widget _buildGlassmorphicBottomNav(BuildContext context, bool isDarkMode) {
-    final theme = Theme.of(context);
-    final navBg = isDarkMode ? const Color(0xFF1E1E2E).withOpacity(0.85) : Colors.white.withOpacity(0.85);
-    final borderColor = isDarkMode ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.4);
-    final shadowColor = isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.06);
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          height: 70,
-          decoration: BoxDecoration(
-            color: navBg,
-            border: Border(top: BorderSide(color: borderColor, width: 1.5)),
-            boxShadow: [
-              BoxShadow(
-                color: shadowColor,
-                blurRadius: 20,
-                offset: const Offset(0, -10),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(Icons.dashboard_outlined, Icons.dashboard, 'Dashboard', 0, theme),
-              _buildNavItem(Icons.medical_services_outlined, Icons.medical_services, 'Services', 1, theme),
-              _buildNavItem(Icons.person_outline, Icons.person, 'Profile', 2, theme),
-            ],
-          ),
-        ),
+      bottomNavigationBar: GlassBottomNav(
+        currentIndex: _currentIndex,
+        onTap: _navigateToTab,
+        isDarkMode: isDarkMode,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.medical_services_outlined), activeIcon: Icon(Icons.medical_services), label: 'Services'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        ],
       ),
-    );
-  }
-
-  Widget _buildNavItem(IconData unselectedIcon, IconData selectedIcon, String label, int index, ThemeData theme) {
-    final isSelected = _currentIndex == index;
-    final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
-    final primaryColor = isDark ? const Color(0xFFBB86FC) : theme.primaryColor;
-    
-    return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? primaryColor.withOpacity(0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? selectedIcon : unselectedIcon,
-              color: isSelected ? primaryColor : (isDark ? Colors.grey[400] : Colors.grey[600]),
-              size: 24,
-            ),
-            if (isSelected) ...[
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: GoogleFonts.outfit(
-                  color: primaryColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+    ),
     );
   }
 }
@@ -387,47 +319,38 @@ class _PatientHomeTabState extends State<PatientHomeTab> {
                     children: [
                       _buildQuickActionCard(
                         context,
-                        '🤖 AI Chatbot',
-                        'Consult symptoms with AI',
-                        Colors.blue,
-                        Icons.smart_toy_outlined,
-                        () => Navigator.pushNamed(context, '/chatbot'),
-                        isDark,
-                      ),
-                      _buildQuickActionCard(
-                        context,
-                        '📄 Medoc Analyze',
+                        'MediDoc Analyze',
                         'Prescription OCR Scanner',
-                        Colors.teal,
+                        AppTheme.pastelBlue,
                         Icons.document_scanner_outlined,
                         () => Navigator.pushNamed(context, '/ocr-reader'),
                         isDark,
                       ),
                       _buildQuickActionCard(
                         context,
-                        '💊 Reminder',
-                        'Manage daily dosage times',
-                        Colors.orange,
-                        Icons.alarm,
-                        () => Navigator.pushNamed(context, '/medicine-reminders'),
-                        isDark,
-                      ),
-                      _buildQuickActionCard(
-                        context,
-                        '🧪 Lab Reports',
+                        'Lab Reports',
                         'AI explanation summaries',
-                        Colors.green,
+                        AppTheme.accentColor,
                         Icons.assignment_outlined,
                         () => Navigator.pushNamed(context, '/lab-reports'),
                         isDark,
                       ),
                       _buildQuickActionCard(
                         context,
-                        '📂 Medical Records',
+                        'Medical Records',
                         'Firebase storage documents',
-                        Colors.indigo,
+                        AppTheme.secondaryColor,
                         Icons.folder_shared_outlined,
                         () => widget.onNavigate(2),
+                        isDark,
+                      ),
+                      _buildQuickActionCard(
+                        context,
+                        'Reminder',
+                        'Manage daily dosage times',
+                        Colors.orangeAccent,
+                        Icons.alarm,
+                        () => Navigator.pushNamed(context, '/medicine-reminders'),
                         isDark,
                       ),
                     ],
@@ -531,13 +454,13 @@ class _PatientHomeTabState extends State<PatientHomeTab> {
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundColor: theme.primaryColor.withOpacity(0.12),
-                        child: Icon(Icons.person, color: theme.primaryColor),
+                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+                        child: Icon(Icons.person, color: AppTheme.primaryColor),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          '👋 Welcome, ${user?.name ?? "Patient"}',
+                          'Welcome, ${user?.name ?? "Patient"}',
                           style: GoogleFonts.outfit(fontSize: 18, color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -570,7 +493,7 @@ class _PatientHomeTabState extends State<PatientHomeTab> {
                             FilledButton.tonal(
                               onPressed: () => widget.onNavigate(1),
                               style: FilledButton.styleFrom(
-                                backgroundColor: theme.primaryColor,
+                                backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
@@ -604,7 +527,7 @@ class _PatientHomeTabState extends State<PatientHomeTab> {
                             FilledButton.tonal(
                               onPressed: () => _showAppointmentDetails(_nextAppointment!),
                               style: FilledButton.styleFrom(
-                                backgroundColor: theme.primaryColor,
+                                backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
@@ -1230,65 +1153,84 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
     final chronicController = TextEditingController(text: widget.user.chronicDiseases ?? '');
     final medicinesController = TextEditingController(text: widget.user.currentMedicines ?? '');
     
-    String gender = widget.user.gender ?? 'Male';
-    String bloodGroup = widget.user.bloodGroup ?? 'O+';
+    String gender = 'Male';
+    final rawGender = widget.user.gender?.trim().toLowerCase();
+    if (rawGender == 'female') {
+      gender = 'Female';
+    } else if (rawGender == 'other') {
+      gender = 'Other';
+    }
+
+    String bloodGroup = 'O+';
+    final rawBg = widget.user.bloodGroup?.trim().toUpperCase();
+    final allowedBgs = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    if (allowedBgs.contains(rawBg)) {
+      bloodGroup = rawBg!;
+    }
 
     showDialog(
       context: context,
       builder: (context) {
-        return SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Dialog(
+        final isDark = widget.isDarkMode;
+        final textColor = isDark ? Colors.white : Colors.black87;
+        return AnimatedPadding(
+          padding: MediaQuery.of(context).viewInsets,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.decelerate,
+          child: AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF1E1E2E) : Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Edit Profile', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
+            contentPadding: const EdgeInsets.all(20),
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 420,
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+              ),
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Edit Profile', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
+                        const SizedBox(height: 16),
                     TextFormField(
                       controller: nameController,
+                      style: TextStyle(color: textColor),
                       decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder()),
                       validator: (val) => val!.isEmpty ? 'Required' : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: phoneController,
+                      style: TextStyle(color: textColor),
                       decoration: const InputDecoration(labelText: 'Phone', border: OutlineInputBorder()),
                       keyboardType: TextInputType.phone,
                     ),
+                    TextFormField(
+                      controller: ageController,
+                      style: TextStyle(color: textColor),
+                      decoration: const InputDecoration(labelText: 'Age', border: OutlineInputBorder()),
+                      keyboardType: TextInputType.number,
+                    ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: ageController,
-                            decoration: const InputDecoration(labelText: 'Age', border: OutlineInputBorder()),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: gender,
-                            decoration: const InputDecoration(labelText: 'Gender', border: OutlineInputBorder()),
-                            items: ['Male', 'Female', 'Other'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                            onChanged: (val) {
-                              if (val != null) gender = val;
-                            },
-                          ),
-                        ),
-                      ],
+                    DropdownButtonFormField<String>(
+                      value: gender,
+                      style: TextStyle(color: textColor),
+                      decoration: const InputDecoration(labelText: 'Gender', border: OutlineInputBorder()),
+                      items: ['Male', 'Female', 'Other'].map((g) => DropdownMenuItem(value: g, child: Text(g, style: TextStyle(color: textColor)))).toList(),
+                      onChanged: (val) {
+                        if (val != null) gender = val;
+                      },
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: bloodGroup,
+                      style: TextStyle(color: textColor),
                       decoration: const InputDecoration(labelText: 'Blood Group', border: OutlineInputBorder()),
-                      items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => DropdownMenuItem(value: bg, child: Text(bg))).toList(),
+                      items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => DropdownMenuItem(value: bg, child: Text(bg, style: TextStyle(color: textColor)))).toList(),
                       onChanged: (val) {
                         if (val != null) bloodGroup = val;
                       },
@@ -1296,86 +1238,88 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: addressController,
+                      style: TextStyle(color: textColor),
                       decoration: const InputDecoration(labelText: 'Address', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: contactController,
+                      style: TextStyle(color: textColor),
                       decoration: const InputDecoration(labelText: 'Emergency Contact', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 16),
-                    Text('Medical Information', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text('Medical Information', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15, color: textColor)),
                     const SizedBox(height: 10),
                     TextFormField(
                       controller: allergiesController,
+                      style: TextStyle(color: textColor),
                       decoration: const InputDecoration(labelText: 'Allergies', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: chronicController,
+                      style: TextStyle(color: textColor),
                       decoration: const InputDecoration(labelText: 'Chronic Diseases', border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: medicinesController,
+                      style: TextStyle(color: textColor),
                       decoration: const InputDecoration(labelText: 'Current Medicines', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.grey[600])),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (!formKey.currentState!.validate()) return;
-                            final updateData = {
-                              'name': nameController.text.trim(),
-                              'phoneNumber': phoneController.text.trim(),
-                              'age': ageController.text.trim(),
-                              'gender': gender,
-                              'bloodGroup': bloodGroup,
-                              'address': addressController.text.trim(),
-                              'emergencyContact': contactController.text.trim(),
-                              'allergies': allergiesController.text.trim(),
-                              'chronicDiseases': chronicController.text.trim(),
-                              'currentMedicines': medicinesController.text.trim(),
-                            };
-
-                            try {
-                              await _db.collection('users').doc(widget.user.uid).update(updateData);
-                              
-                              // Trigger reload of user model state
-                              final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                              await authProvider.refreshUser();
-
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Profile details updated successfully!')),
-                                );
-                              }
-                            } catch (_) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Profile update failed.')),
-                                );
-                              }
-                            }
-                          },
-                          child: Text('Save', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-                        ),
-                      ],
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        );
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final updateData = {
+                'name': nameController.text.trim(),
+                'phoneNumber': phoneController.text.trim(),
+                'age': ageController.text.trim(),
+                'gender': gender,
+                'bloodGroup': bloodGroup,
+                'address': addressController.text.trim(),
+                'emergencyContact': contactController.text.trim(),
+                'allergies': allergiesController.text.trim(),
+                'chronicDiseases': chronicController.text.trim(),
+                'currentMedicines': medicinesController.text.trim(),
+              };
+
+              try {
+                await _db.collection('users').doc(widget.user.uid).update(updateData);
+                
+                // Trigger reload of user model state
+                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                await authProvider.refreshUser();
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Profile details updated successfully!')),
+                  );
+                }
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Profile update failed.')),
+                  );
+                }
+              }
+            },
+            child: Text('Save', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
       },
     );
   }
@@ -1520,19 +1464,7 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
     }
   }
 
-  String _getDocumentEmoji(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('prescription') || lower.contains('rx') || lower.contains('medicine') || lower.contains('doctor')) {
-      return '🩺 ';
-    } else if (lower.contains('mri') || lower.contains('scan') || lower.contains('xray') || lower.contains('x-ray') || lower.contains('image') || lower.contains('photo') || lower.contains('ultrasound')) {
-      return '🖼 ';
-    } else if (lower.contains('insurance') || lower.contains('card') || lower.contains('id') || lower.contains('policy')) {
-      return '📄 ';
-    } else if (lower.contains('blood') || lower.contains('test') || lower.contains('lab') || lower.contains('report')) {
-      return '🩸 ';
-    }
-    return '📄 ';
-  }
+
 
   List<dynamic> _patientDocuments = [];
   bool _isLoadingDocs = false;
@@ -1722,8 +1654,8 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
                                               ),
                                             ),
                                             title: Text(
-                                              '${_getDocumentEmoji(name)}$name',
-                                              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold),
+                                              name,
+                                              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -1863,18 +1795,9 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Demographics Header Card
-          Container(
-            decoration: BoxDecoration(
-              color: widget.isDarkMode ? const Color(0xFF1E1E2E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: widget.isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-              boxShadow: [
-                BoxShadow(
-                  color: widget.isDarkMode ? Colors.black38 : Colors.black.withOpacity(0.03),
-                  blurRadius: 10, offset: const Offset(0, 4)
-                ),
-              ],
-            ),
+          GlassContainer(
+            isDarkMode: widget.isDarkMode,
+            borderRadius: 20,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -1915,18 +1838,9 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
           const SizedBox(height: 16),
 
           // Personal Details Card
-          Container(
-            decoration: BoxDecoration(
-              color: widget.isDarkMode ? const Color(0xFF1E1E2E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: widget.isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-              boxShadow: [
-                BoxShadow(
-                  color: widget.isDarkMode ? Colors.black38 : Colors.black.withOpacity(0.03),
-                  blurRadius: 10, offset: const Offset(0, 4)
-                ),
-              ],
-            ),
+          GlassContainer(
+            isDarkMode: widget.isDarkMode,
+            borderRadius: 20,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -1954,18 +1868,9 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
           const SizedBox(height: 16),
 
           // Medical Information Card
-          Container(
-            decoration: BoxDecoration(
-              color: widget.isDarkMode ? const Color(0xFF1E1E2E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: widget.isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-              boxShadow: [
-                BoxShadow(
-                  color: widget.isDarkMode ? Colors.black38 : Colors.black.withOpacity(0.03),
-                  blurRadius: 10, offset: const Offset(0, 4)
-                ),
-              ],
-            ),
+          GlassContainer(
+            isDarkMode: widget.isDarkMode,
+            borderRadius: 20,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -1983,18 +1888,9 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
           const SizedBox(height: 16),
 
           // Documents Roster Button Card
-          Container(
-            decoration: BoxDecoration(
-              color: widget.isDarkMode ? const Color(0xFF1E1E2E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: widget.isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey[200]!),
-              boxShadow: [
-                BoxShadow(
-                  color: widget.isDarkMode ? Colors.black38 : Colors.black.withOpacity(0.03),
-                  blurRadius: 10, offset: const Offset(0, 4)
-                ),
-              ],
-            ),
+          GlassContainer(
+            isDarkMode: widget.isDarkMode,
+            borderRadius: 20,
             child: ListTile(
               leading: const Icon(Icons.folder_shared_outlined, color: Colors.blue),
               title: Text('My Health Documents', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: widget.isDarkMode ? Colors.white : Colors.black87)),
