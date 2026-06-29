@@ -141,6 +141,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           }
 
           return ListView.separated(
+            physics: const BouncingScrollPhysics(),
             itemCount: sessions.length,
             separatorBuilder: (context, index) => Divider(color: isDark ? Colors.white12 : Colors.grey[200], height: 1),
             itemBuilder: (context, index) {

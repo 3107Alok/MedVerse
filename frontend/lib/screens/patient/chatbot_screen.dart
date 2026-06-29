@@ -327,6 +327,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   Widget _buildChatList(ThemeData theme, bool isDark) {
     return ListView.builder(
       controller: _scrollController,
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: _messages.length + (_isLoading ? 1 : 0),
       itemBuilder: (context, index) {

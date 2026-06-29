@@ -26,6 +26,8 @@ import 'package:frontend/screens/patient/lab_booking_screen.dart';
 import 'package:frontend/theme/glassmorphism.dart';
 import 'package:frontend/widgets/shared_glass_components.dart';
 import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/widgets/interactive_scale.dart';
+import 'package:frontend/widgets/shimmer_loader.dart';
 class PatientDashboard extends StatefulWidget {
   const PatientDashboard({super.key});
 
@@ -93,7 +95,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
       ),
       body: SafeArea(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 200),
           transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
           child: KeyedSubtree(
             key: ValueKey(_currentIndex),
@@ -101,14 +103,17 @@ class _PatientDashboardState extends State<PatientDashboard> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, '/chatbot'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        tooltip: 'AI Chatbot',
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: const Icon(Icons.smart_toy_outlined),
+      floatingActionButton: InteractiveScale(
+        onTap: () => Navigator.pushNamed(context, '/chatbot'),
+        child: FloatingActionButton(
+          onPressed: () {}, // empty to keep enabled styling, action handled by InteractiveScale
+          backgroundColor: AppTheme.primaryColor,
+          foregroundColor: Colors.white,
+          tooltip: 'AI Chatbot',
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: const Icon(Icons.smart_toy_outlined),
+        ),
       ),
       bottomNavigationBar: GlassBottomNav(
         currentIndex: _currentIndex,
@@ -290,7 +295,37 @@ class _PatientHomeTabState extends State<PatientHomeTab> {
     final subtitleColor = isDark ? Colors.white60 : Colors.grey[700];
 
     return _isLoading
-        ? Center(child: CircularProgressIndicator(color: theme.primaryColor))
+        ? Scaffold(
+            backgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.white,
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 40),
+                  const ShimmerWidget(width: double.infinity, height: 180, borderRadius: 24),
+                  const SizedBox(height: 24),
+                  const ShimmerWidget(width: 180, height: 20),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: const [
+                      Expanded(child: ShimmerWidget(width: double.infinity, height: 120, borderRadius: 16)),
+                      SizedBox(width: 14),
+                      Expanded(child: ShimmerWidget(width: double.infinity, height: 120, borderRadius: 16)),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: const [
+                      Expanded(child: ShimmerWidget(width: double.infinity, height: 120, borderRadius: 16)),
+                      SizedBox(width: 14),
+                      Expanded(child: SizedBox()),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          )
         : RefreshIndicator(
             onRefresh: _fetchDashboardData,
             child: SingleChildScrollView(
@@ -444,10 +479,13 @@ class _PatientHomeTabState extends State<PatientHomeTab> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
-                        child: Icon(Icons.person, color: AppTheme.primaryColor),
+                      Hero(
+                        tag: 'profile-avatar',
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+                          child: Icon(Icons.person, color: AppTheme.primaryColor),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -542,51 +580,54 @@ class _PatientHomeTabState extends State<PatientHomeTab> {
       duration: const Duration(milliseconds: 350),
       curve: Curves.elasticOut,
       builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-      child: InkWell(
+      child: InteractiveScale(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[100]!),
-            boxShadow: [
-              BoxShadow(
-                color: isDark ? Colors.black38 : Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[100]!),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark ? Colors.black38 : Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                child: Icon(icon, color: color, size: 18),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : Colors.black87),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: GoogleFonts.outfit(fontSize: 9, color: isDark ? Colors.white54 : Colors.grey[500]),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: color, size: 18),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.outfit(fontSize: 9, color: isDark ? Colors.white54 : Colors.grey[500]),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -821,7 +862,38 @@ class _PatientServicesTabState extends State<PatientServicesTab> {
           title: Text('Find Specialist', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
         ),
         body: _isDoctorsLoading
-            ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
+            ? ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: 3,
+                itemBuilder: (context, _) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: GlassContainer(
+                    isDarkMode: isDark,
+                    borderRadius: 20,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const ShimmerWidget(width: 60, height: 60, borderRadius: 30),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                ShimmerWidget(width: 140, height: 16),
+                                SizedBox(height: 8),
+                                ShimmerWidget(width: 100, height: 12),
+                                SizedBox(height: 8),
+                                ShimmerWidget(width: 60, height: 12),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              )
             : Column(
                 children: [
                   Padding(
@@ -875,6 +947,7 @@ class _PatientServicesTabState extends State<PatientServicesTab> {
                     child: _filteredDoctors.isEmpty
                       ? Center(child: Text('No verified doctors found.', style: GoogleFonts.outfit(color: subtitleColor)))
                       : ListView.builder(
+                          physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.all(16),
                           itemCount: _filteredDoctors.length,
                           itemBuilder: (context, idx) {
@@ -1677,7 +1750,36 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
                       const SizedBox(height: 16),
                       Expanded(
                         child: _isLoadingDocs
-                            ? const Center(child: CircularProgressIndicator())
+                            ? ListView.builder(
+                                controller: scrollController,
+                                itemCount: 3,
+                                itemBuilder: (context, _) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: GlassContainer(
+                                    isDarkMode: widget.isDarkMode,
+                                    borderRadius: 16,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Row(
+                                        children: [
+                                          const ShimmerWidget(width: 48, height: 48, borderRadius: 12),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: const [
+                                                ShimmerWidget(width: 120, height: 14),
+                                                SizedBox(height: 6),
+                                                ShimmerWidget(width: 80, height: 10),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
                             : _patientDocuments.isEmpty
                                 ? Center(
                                     child: Text('No uploaded documents found.', style: GoogleFonts.outfit(color: Colors.grey[500])),
@@ -1685,6 +1787,7 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
                                 : RefreshIndicator(
                                     onRefresh: () => _fetchDocuments(setSheetState),
                                     child: ListView.builder(
+                                      physics: const BouncingScrollPhysics(),
                                       controller: scrollController,
                                       itemCount: _patientDocuments.length,
                                       itemBuilder: (context, idx) {
@@ -1861,16 +1964,19 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 36,
-                    backgroundColor: theme.primaryColor.withOpacity(0.08),
-                    backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                    child: photoUrl.isEmpty
-                        ? Text(
-                            widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : 'P',
-                            style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.bold, color: theme.primaryColor),
-                          )
-                        : null,
+                  Hero(
+                    tag: 'profile-avatar',
+                    child: CircleAvatar(
+                      radius: 36,
+                      backgroundColor: theme.primaryColor.withOpacity(0.08),
+                      backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                      child: photoUrl.isEmpty
+                          ? Text(
+                              widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : 'P',
+                              style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.bold, color: theme.primaryColor),
+                            )
+                          : null,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

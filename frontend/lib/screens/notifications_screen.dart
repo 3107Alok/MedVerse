@@ -232,6 +232,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             }
 
                             return ListView.builder(
+                              physics: const BouncingScrollPhysics(),
                               itemCount: docs.length,
                               itemBuilder: (context, index) {
                                 final doc = docs[index];

@@ -67,6 +67,12 @@ class AppTheme {
       ),
       labelStyle: GoogleFonts.outfit(color: secondaryColor.withValues(alpha: 0.6)),
     ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: SlideFadePageTransitionsBuilder(),
+        TargetPlatform.iOS: SlideFadePageTransitionsBuilder(),
+      },
+    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -148,6 +154,12 @@ class AppTheme {
       color: Colors.white.withValues(alpha: 0.1),
     ),
     iconTheme: const IconThemeData(color: Colors.white70),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: SlideFadePageTransitionsBuilder(),
+        TargetPlatform.iOS: SlideFadePageTransitionsBuilder(),
+      },
+    ),
   );
 
   static LinearGradient getBackgroundGradient(bool isDark) {
@@ -172,5 +184,33 @@ class AppTheme {
         end: Alignment.bottomRight,
       );
     }
+  }
+}
+
+class SlideFadePageTransitionsBuilder extends PageTransitionsBuilder {
+  const SlideFadePageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curvedAnimation = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeInOutCubic,
+    );
+    return FadeTransition(
+      opacity: curvedAnimation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.05, 0.0),
+          end: Offset.zero,
+        ).animate(curvedAnimation),
+        child: child,
+      ),
+    );
   }
 }
