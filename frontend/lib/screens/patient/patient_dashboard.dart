@@ -821,7 +821,7 @@ class _PatientServicesTabState extends State<PatientServicesTab> {
           title: Text('Find Specialist', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
         ),
         body: _isDoctorsLoading
-            ? Center(child: CircularProgressIndicator(color: theme.primaryColor))
+            ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
             : Column(
                 children: [
                   Padding(
@@ -859,9 +859,9 @@ class _PatientServicesTabState extends State<PatientServicesTab> {
                             label: Text(chip, style: GoogleFonts.outfit(fontSize: 12,
                               color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87))),
                             selected: isSel,
-                            selectedColor: theme.primaryColor,
+                            selectedColor: theme.colorScheme.primary,
                             backgroundColor: isDark ? const Color(0xFF1E1E2E) : Colors.grey[100],
-                            side: BorderSide(color: isSel ? theme.primaryColor : (isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!)),
+                            side: BorderSide(color: isSel ? theme.colorScheme.primary : (isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!)),
                             onSelected: (selected) {
                               if (selected) setState(() { _doctorFilterChip = chip; _filterDoctors(); });
                             },
@@ -906,10 +906,10 @@ class _PatientServicesTabState extends State<PatientServicesTab> {
                                       children: [
                                         CircleAvatar(
                                           radius: 28,
-                                          backgroundColor: theme.primaryColor.withOpacity(0.1),
+                                          backgroundColor: theme.colorScheme.primary.withOpacity(isDark ? 0.25 : 0.1),
                                           child: Text(
                                             doc['name'].toString().isNotEmpty ? doc['name'].toString()[0].toUpperCase() : 'D',
-                                            style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: theme.primaryColor),
+                                            style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
                                           ),
                                         ),
                                         const SizedBox(width: 14),
@@ -949,7 +949,7 @@ class _PatientServicesTabState extends State<PatientServicesTab> {
                                       Row(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Icon(Icons.location_on, size: 14, color: theme.primaryColor),
+                                          Icon(Icons.location_on, size: 14, color: theme.colorScheme.primary),
                                           const SizedBox(width: 4),
                                           Expanded(
                                             child: Column(
@@ -984,12 +984,13 @@ class _PatientServicesTabState extends State<PatientServicesTab> {
                                       children: [
                                         Text(
                                           '₹$fee / consult',
-                                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: theme.primaryColor),
+                                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.primary),
                                         ),
                                         FilledButton(
                                           onPressed: () => Navigator.pushNamed(context, '/book-appointment', arguments: doc['uid']),
                                           style: FilledButton.styleFrom(
-                                            backgroundColor: theme.primaryColor,
+                                            backgroundColor: theme.colorScheme.primary,
+                                            foregroundColor: isDark ? Colors.black : Colors.white,
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                           ),

@@ -353,13 +353,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ? null
                                       : () async {
                                           if (_formKey.currentState!.validate()) {
-                                            final success = await authProvider.signIn(
-                                              _emailController.text.trim(),
-                                              _passwordController.text,
-                                            );
-                                            if (success) {
-                                              // Success!
-                                            } else if (!success && mounted) {
+                                             final success = await authProvider.signIn(
+                                               _emailController.text.trim(),
+                                               _passwordController.text,
+                                             );
+                                             if (success && mounted) {
+                                               Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                                             } else if (!success && mounted) {
                                               if (authProvider.errorMessage == 'Please verify your email address before logging in.') {
                                                 _showEmailVerificationRequiredDialog(
                                                   context,
@@ -395,12 +395,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ? null
                                       : () async {
                                           try {
-                                            final success = await authProvider.signInWithGoogle();
-                                            if (!success && mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Google Login Failed')),
-                                              );
-                                            }
+                                             final success = await authProvider.signInWithGoogle();
+                                             if (success && mounted) {
+                                               Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                                             } else if (!success && mounted) {
+                                               ScaffoldMessenger.of(context).showSnackBar(
+                                                 const SnackBar(content: Text('Google Login Failed')),
+                                               );
+                                             }
                                           } catch (e) {
                                             if (mounted) {
                                               ScaffoldMessenger.of(context).showSnackBar(

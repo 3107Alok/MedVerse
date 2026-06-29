@@ -155,9 +155,16 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    await _authService.signOut();
-    _user = null;
-    notifyListeners();
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      await _authService.signOut();
+    } catch (e) {
+      _errorMessage = getFirebaseAuthErrorMessage(e);
+    } finally {
+      _user = null;
+      _setLoading(false);
+    }
   }
 
   Future<bool> sendPasswordResetEmail(String email) async {
