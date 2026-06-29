@@ -212,7 +212,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'MediNexa AI is active',
+                  'MedVerse AI is active',
                   style: GoogleFonts.outfit(fontSize: 12, color: isDark ? Colors.white70 : Colors.black54),
                 ),
               ],
@@ -263,7 +263,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Consult MediNexa AI',
+              'Consult MedVerse AI',
               style: GoogleFonts.outfit(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,

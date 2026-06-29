@@ -1,6 +1,6 @@
-# MediNexa - Universal AI Medical Platform 🩺
+# MedVerse - Universal AI Medical Platform 🩺
 
-MediNexa is a premium, modern digital healthcare application built with **Flutter** (frontend) and **Flask** (backend), featuring a secure and unified storage architecture powered by **MongoDB GridFS** and **Google Gemini AI (Gemini 2.5 Flash)**.
+MedVerse is a premium, modern digital healthcare application built with **Flutter** (frontend) and **Flask** (backend), featuring a secure and unified storage architecture powered by **MongoDB GridFS** and **Google Gemini AI (Gemini 2.5 Flash)**.
 
 ---
 
@@ -23,7 +23,7 @@ MediNexa is a premium, modern digital healthcare application built with **Flutte
 
 ## 🎨 Overview & Design Architecture
 
-MediNexa coordinates clinical records, patient documents, and lab reports under a unified data backend. Unlike traditional designs where files are sandboxed on multiple servers, MediNexa uses **MongoDB GridFS** as its singular secure repository.
+MedVerse coordinates clinical records, patient documents, and lab reports under a unified data backend. Unlike traditional designs where files are sandboxed on multiple servers, MedVerse uses **MongoDB GridFS** as its singular secure repository.
 
 ### System Workflow
 ```
@@ -108,7 +108,7 @@ To protect patient files from unauthorized access:
 ## 📂 Project Directory Mappings
 
 ```
-MediNexa/
+MedVerse/
 ├── backend/                     # Flask Python Server
 │   ├── app.py                   # Main backend application
 │   ├── firebase_config.py       # Firebase Token & Admin SDK config
@@ -225,8 +225,8 @@ All storage routes require `Authorization: Bearer <ID_TOKEN>` header.
    ```env
    PORT=5000
    MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/
-   DB_NAME=medinexa
-   FIREBASE_CREDENTIALS_PATH=medinexa-cf258-firebase-adminsdk-fbsvc-f5ec0d9510.json
+   DB_NAME=medverse
+   FIREBASE_CREDENTIALS_PATH=medverse-cf258-firebase-adminsdk-fbsvc-f5ec0d9510.json
    GEMINI_API_KEY=AIzaSy...your_gemini_key
    ```
 5. Run the development server:

@@ -603,7 +603,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Welcome to MediNexa',
+                        'Welcome to MedVerse',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.outfit(
                           fontSize: 28,

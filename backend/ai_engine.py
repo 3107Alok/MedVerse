@@ -91,7 +91,7 @@ class AIEngine:
         }
         
         system_prompt = (
-            "You are an expert universal medical document analyzer and medical assistant (MediNexa AI).\n"
+            "You are an expert universal medical document analyzer and medical assistant (MedVerse AI).\n"
             "Analyze the uploaded medical document image.\n"
             "The image may be a Prescription, Laboratory Report, Medical Bill, Discharge Summary, or an Unknown Medical Document.\n\n"
             "Classification & Extraction Rules:\n"
@@ -314,7 +314,7 @@ class AIEngine:
             })
             
         system_prompt = (
-            "You are MediNexa AI.\n"
+            "You are MedVerse AI.\n"
             "You are a healthcare assistant.\n\n"
             "Rules:\n"
             "1. Answer only healthcare, wellness, medicines, nutrition, fitness and lifestyle related questions. If the user asks anything outside of these topics, politely decline to answer, stating you are a healthcare assistant.\n"

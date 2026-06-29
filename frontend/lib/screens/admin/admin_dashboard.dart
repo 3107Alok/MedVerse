@@ -56,7 +56,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         elevation: 0,
         iconTheme: IconThemeData(color: _isDarkMode ? Colors.white : Colors.black87),
         title: Text(
-          'MediNexa Admin',
+          'MedVerse Admin',
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             fontSize: 22,

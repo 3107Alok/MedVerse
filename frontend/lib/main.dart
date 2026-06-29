@@ -35,20 +35,20 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ],
-      child: const MediNexaApp(),
+      child: const MedVerseApp(),
     ),
   );
 }
 
-class MediNexaApp extends StatelessWidget {
-  const MediNexaApp({super.key});
+class MedVerseApp extends StatelessWidget {
+  const MedVerseApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
 
     return MaterialApp(
-      title: 'MediNexa',
+      title: 'MedVerse',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

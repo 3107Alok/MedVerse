@@ -30,7 +30,7 @@ app.register_blueprint(storage_blueprint, url_prefix='/api/storage')
 
 @app.route('/')
 def index():
-    return jsonify({"message": "MediNexa Backend API is running", "status": "success"})
+    return jsonify({"message": "MedVerse Backend API is running", "status": "success"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

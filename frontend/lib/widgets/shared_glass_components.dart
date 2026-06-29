@@ -119,7 +119,7 @@ class GlassLogoutDialog extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Are you sure you want to logout from MediNexa?',
+              'Are you sure you want to logout from MedVerse?',
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(
                 fontSize: 16,
@@ -309,7 +309,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                                     const Icon(Icons.local_hospital_outlined, size: 56, color: AppTheme.primaryColor),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'MediNexa',
+                                      'MedVerse',
                                       style: GoogleFonts.outfit(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
@@ -329,7 +329,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                               ),
                               const SizedBox(height: 24),
                               Text(
-                                'MediNexa is an AI-powered healthcare platform that connects Patients, Doctors, Laboratories, and Administrators through one secure and intelligent ecosystem.',
+                                'MedVerse is an AI-powered healthcare platform that connects Patients, Doctors, Laboratories, and Administrators through one secure and intelligent ecosystem.',
                                 style: GoogleFonts.outfit(fontSize: 13, color: currentIsDark ? Colors.white70 : Colors.black87, height: 1.4),
                               ),
                               const SizedBox(height: 16),
@@ -377,7 +377,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Designed & Developed by Alok Singh\n© 2026 MediNexa. All Rights Reserved.',
+                                'Designed & Developed by Alok Singh\n© 2026 MedVerse. All Rights Reserved.',
                                 style: GoogleFonts.outfit(fontSize: 13, color: currentIsDark ? Colors.white70 : Colors.black54, height: 1.4),
                               ),
                               const SizedBox(height: 24),
@@ -454,7 +454,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'admin.medinexa@gmail.com',
+                                'admin.medverse@gmail.com',
                                 style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 16),
@@ -470,7 +470,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Found an issue? Send us a detailed description along with screenshots to help us improve MediNexa.',
+                                'Found an issue? Send us a detailed description along with screenshots to help us improve MedVerse.',
                                 style: GoogleFonts.outfit(fontSize: 13, color: currentIsDark ? Colors.white70 : Colors.black54, height: 1.4),
                               ),
                               const SizedBox(height: 16),
@@ -523,7 +523,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                'Thank you for using MediNexa. Your feedback helps us build a smarter and more reliable healthcare platform.',
+                                'Thank you for using MedVerse. Your feedback helps us build a smarter and more reliable healthcare platform.',
                                 style: GoogleFonts.outfit(fontSize: 12, fontStyle: FontStyle.italic, color: currentIsDark ? Colors.white60 : Colors.black54, height: 1.4),
                               ),
                               const SizedBox(height: 24),

@@ -55,7 +55,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
         elevation: 0,
         iconTheme: IconThemeData(color: _isDarkMode ? Colors.white : Colors.black87),
         title: Text(
-          'MediNexa',
+          'MedVerse',
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold, 
             fontSize: 22,

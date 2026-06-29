@@ -159,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Please verify your email address before accessing MediNexa.',
+                      'Please verify your email address before accessing MedVerse.',
                       style: GoogleFonts.outfit(
                         fontSize: 14,
                         color: isDark ? Colors.white70 : Colors.black54,
@@ -294,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Sign in to continue to MediNexa',
+                          'Sign in to continue to MedVerse',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.outfit(
                             fontSize: 16,

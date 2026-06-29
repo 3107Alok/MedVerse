@@ -72,7 +72,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
         elevation: 0,
         iconTheme: IconThemeData(color: isDarkMode ? Colors.white : Colors.black87),
         title: Text(
-          'MediNexa',
+          'MedVerse',
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             fontSize: 22,

@@ -45,7 +45,7 @@ class _LabDashboardState extends State<LabDashboard> {
         backgroundColor: Colors.transparent,
         appBar: AppBar(
         title: Text(
-          'MediNexa Lab',
+          'MedVerse Lab',
           style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
