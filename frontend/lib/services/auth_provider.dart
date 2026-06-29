@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:frontend/models/user_model.dart';
 import 'package:frontend/services/auth_service.dart';
+import 'package:frontend/services/notification_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -57,6 +58,10 @@ class AuthProvider with ChangeNotifier {
           }
         } catch (e) {
           _user = null;
+        }
+
+        if (_user != null) {
+          NotificationService.updateUserFcmToken(firebaseUser.uid);
         }
 
         _isLoading = false;

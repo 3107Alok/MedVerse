@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:frontend/services/notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:frontend/config/api_config.dart';
 
 class AdminService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -56,12 +59,21 @@ class AdminService {
       'rejectionReason': FieldValue.delete(),
     });
 
-    if (status.toLowerCase() == 'verified') {
-      await NotificationService.addNotification(
-        userId: uid,
-        title: 'Account Approved 🎉',
-        body: 'Your doctor profile has been successfully verified by the Admin. You can now consult patients.',
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/doctors/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'uid': uid,
+          'status': status,
+        }),
       );
+    } catch (e) {
+      print("Error calling verify_doctor backend: $e");
     }
   }
 
@@ -72,11 +84,22 @@ class AdminService {
       'rejectionReason': reason,
     });
 
-    await NotificationService.addNotification(
-      userId: uid,
-      title: 'Account Rejection ❌',
-      body: 'Your doctor profile verification was rejected. Reason: $reason',
-    );
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/doctors/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'uid': uid,
+          'status': 'rejected',
+        }),
+      );
+    } catch (e) {
+      print("Error calling reject_doctor backend: $e");
+    }
   }
 
   Future<Map<String, int>> getDashboardStats() async {
@@ -203,6 +226,23 @@ class AdminService {
       'verified': isApproved,
       'rejectionReason': FieldValue.delete(),
     });
+
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/labs/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'uid': uid,
+          'status': status,
+        }),
+      );
+    } catch (e) {
+      print("Error calling verify_lab backend: $e");
+    }
   }
 
   Future<void> rejectLab(String uid, String reason) async {
@@ -216,6 +256,23 @@ class AdminService {
       'verified': false,
       'rejectionReason': reason,
     });
+
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/labs/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'uid': uid,
+          'status': 'rejected',
+        }),
+      );
+    } catch (e) {
+      print("Error calling reject_lab backend: $e");
+    }
   }
 
   Future<void> deleteUser(String uid, String role) async {

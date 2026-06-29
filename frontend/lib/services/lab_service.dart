@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:frontend/config/api_config.dart';
 import 'package:frontend/models/lab_profile_model.dart';
-import 'package:frontend/services/notification_service.dart';
 
 class LabService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -61,16 +60,26 @@ class LabService {
     bookingData['bookingId'] = bookingId;
     bookingData['status'] = 'pending';
     bookingData['createdAt'] = FieldValue.serverTimestamp();
-    await _db.collection('lab_bookings').doc(bookingId).set(bookingData);
 
-    final String labId = bookingData['labId'] ?? '';
-    final String patientName = bookingData['patientName'] ?? 'A patient';
-    if (labId.isNotEmpty) {
-      await NotificationService.addNotification(
-        userId: labId,
-        title: 'New Lab Booking 🩸',
-        body: '$patientName has booked a ${bookingData['testName']} test for ${bookingData['date']} at ${bookingData['time_slot']}.',
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final payload = Map<String, dynamic>.from(bookingData);
+      payload.remove('createdAt');
+      
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/lab-bookings/book'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(payload),
       );
+      if (response.statusCode != 201) {
+        throw Exception("Failed backend booking");
+      }
+    } catch (e) {
+      print("Error booking lab test via backend: $e");
+      await _db.collection('lab_bookings').doc(bookingId).set(bookingData);
     }
   }
 
@@ -114,7 +123,6 @@ class LabService {
             }).toList());
   }
 
-  // Update Booking Status
   Future<void> updateBookingStatus(String bookingId, String status) async {
     final updateData = <String, dynamic>{
       'status': status,
@@ -123,6 +131,23 @@ class LabService {
       updateData['completedAt'] = FieldValue.serverTimestamp();
     }
     await _db.collection('lab_bookings').doc(bookingId).update(updateData);
+
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/lab-bookings/update-status'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'bookingId': bookingId,
+          'status': status,
+        }),
+      );
+    } catch (e) {
+      print("Error updating lab booking status via backend: $e");
+    }
   }
 
   // Upload Report PDF

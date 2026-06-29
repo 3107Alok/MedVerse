@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:frontend/services/notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:frontend/config/api_config.dart';
 
 class BookingService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -38,16 +41,25 @@ class BookingService {
   }
 
   Future<void> bookAppointment(Map<String, dynamic> bookingData) async {
-    await _db.collection('appointments').add(bookingData);
-
-    final String doctorId = bookingData['doctor_id'] ?? '';
-    final String patientName = bookingData['patient_name'] ?? 'A patient';
-    if (doctorId.isNotEmpty) {
-      await NotificationService.addNotification(
-        userId: doctorId,
-        title: 'New Appointment Booking 📅',
-        body: '$patientName has booked an appointment with you for ${bookingData['date']} at ${bookingData['time_slot']}.',
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final payload = Map<String, dynamic>.from(bookingData);
+      payload.remove('createdAt');
+      
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/appointments/book'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(payload),
       );
+      if (response.statusCode != 201) {
+        throw Exception("Failed backend booking");
+      }
+    } catch (e) {
+      print("Error booking appointment via backend: $e");
+      await _db.collection('appointments').add(bookingData);
     }
   }
 
@@ -115,24 +127,21 @@ class BookingService {
       'status': status.toLowerCase(),
     });
 
-    if (status.toLowerCase() == 'approved') {
-      try {
-        final doc = await _db.collection('appointments').doc(appointmentId).get();
-        if (doc.exists && doc.data() != null) {
-          final data = doc.data()!;
-          final patientId = data['patient_id'] ?? '';
-          final doctorName = data['doctor_name'] ?? 'Doctor';
-          if (patientId.isNotEmpty) {
-            await NotificationService.addNotification(
-              userId: patientId,
-              title: 'Appointment Accepted 📅',
-              body: 'Your appointment with $doctorName is accepted.',
-            );
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/appointments/update-status'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'appointmentId': appointmentId,
+          'status': status,
+        }),
+      );
+    } catch (e) {
+      print("Error updating appointment status via backend: $e");
     }
   }
 

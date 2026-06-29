@@ -1,56 +1,76 @@
-import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-class LocalNotification {
-  final String id;
-  final String userId;
-  final String title;
-  final String body;
-  final DateTime createdAt;
-  final bool isRead;
-
-  LocalNotification({
-    required this.id,
-    required this.userId,
-    required this.title,
-    required this.body,
-    required this.createdAt,
-    this.isRead = false,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'userId': userId,
-    'title': title,
-    'body': body,
-    'createdAt': createdAt.toIso8601String(),
-    'isRead': isRead,
-  };
-
-  factory LocalNotification.fromJson(Map<String, dynamic> json) => LocalNotification(
-    id: json['id'],
-    userId: json['userId'],
-    title: json['title'],
-    body: json['body'],
-    createdAt: DateTime.parse(json['createdAt']),
-    isRead: json['isRead'] ?? false,
-  );
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Handle background notifications if needed.
+  debugPrint('Handling a background message: ${message.messageId}');
 }
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  static const String _notificationsKey = 'local_notifications';
 
   static Future<void> init() async {
     tz.initializeTimeZones();
+    
+    // Initialize Local Notifications
     const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
     const InitializationSettings initSettings = InitializationSettings(android: androidSettings, iOS: iosSettings);
     await _notificationsPlugin.initialize(initSettings);
+
+    // Request FCM permission
+    final FirebaseMessaging messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Set up Foreground listener
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint('Got a message whilst in the foreground!');
+      debugPrint('Message data: ${message.data}');
+
+      if (message.notification != null) {
+        debugPrint('Message also contained a notification: ${message.notification}');
+        showImmediateNotification(
+          message.notification.hashCode,
+          message.notification!.title ?? '',
+          message.notification!.body ?? '',
+        );
+      }
+    });
+
+    // Set up Background handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
+
+  static Future<void> updateUserFcmToken(String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'fcmToken': token,
+        });
+        debugPrint('FCM Token updated: $token');
+      }
+
+      // Automatically listen to token refresh and update Firestore
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'fcmToken': newToken,
+        });
+        debugPrint('FCM Token refreshed: $newToken');
+      });
+    } catch (e) {
+      debugPrint('Error updating FCM Token: $e');
+    }
   }
 
   static Future<void> scheduleNotification(int id, String title, String body, DateTime scheduledTime) async {
@@ -68,111 +88,20 @@ class NotificationService {
     );
   }
 
-  static Future<List<LocalNotification>> getNotifications(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_notificationsKey) ?? [];
-    
-    final notifications = list
-        .map((item) => LocalNotification.fromJson(jsonDecode(item)))
-        .where((n) => n.userId == userId)
-        .toList();
-
-    final cutoff = DateTime.now().subtract(const Duration(hours: 24));
-    final active = notifications.where((n) => n.createdAt.isAfter(cutoff)).toList();
-
-    if (active.length != notifications.length || list.length != active.length) {
-      final allList = list
-          .map((item) => LocalNotification.fromJson(jsonDecode(item)))
-          .where((n) => n.userId != userId || n.createdAt.isAfter(cutoff))
-          .map((n) => jsonEncode(n.toJson()))
-          .toList();
-      await prefs.setStringList(_notificationsKey, allList);
-    }
-
-    active.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return active;
-  }
-
-  static Future<void> addNotification({
-    required String userId,
-    required String title,
-    required String body,
-  }) async {
-    if (userId.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_notificationsKey) ?? [];
-    
-    final newNotif = LocalNotification(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: userId,
-      title: title,
-      body: body,
-      createdAt: DateTime.now(),
-    );
-
-    list.add(jsonEncode(newNotif.toJson()));
-    await prefs.setStringList(_notificationsKey, list);
-    
-    try {
-      await showImmediateNotification(newNotif.id.hashCode, title, body);
-    } catch (e) {
-      debugPrint('Local push notification error: $e');
-    }
-  }
-
   static Future<void> showImmediateNotification(int id, String title, String body) async {
     await _notificationsPlugin.show(
       id,
       title,
       body,
       const NotificationDetails(
-        android: AndroidNotificationDetails('alert_channel', 'Alerts', importance: Importance.max, priority: Priority.high),
+        android: AndroidNotificationDetails(
+          'alert_channel',
+          'Alerts',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
         iOS: DarwinNotificationDetails(),
       ),
     );
-  }
-
-  static Future<void> markAllAsRead(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_notificationsKey) ?? [];
-    
-    final updated = list.map((item) {
-      final n = LocalNotification.fromJson(jsonDecode(item));
-      if (n.userId == userId) {
-        return jsonEncode(LocalNotification(
-          id: n.id,
-          userId: n.userId,
-          title: n.title,
-          body: n.body,
-          createdAt: n.createdAt,
-          isRead: true,
-        ).toJson());
-      }
-      return item;
-    }).toList();
-
-    await prefs.setStringList(_notificationsKey, updated);
-  }
-
-  static Future<void> markAsRead(String notificationId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_notificationsKey) ?? [];
-    
-    final updated = list.map((item) {
-      final n = LocalNotification.fromJson(jsonDecode(item));
-      if (n.id == notificationId) {
-        return jsonEncode(LocalNotification(
-          id: n.id,
-          userId: n.userId,
-          title: n.title,
-          body: n.body,
-          createdAt: n.createdAt,
-          isRead: true,
-        ).toJson());
-      }
-      return item;
-    }).toList();
-
-    await prefs.setStringList(_notificationsKey, updated);
   }
 }

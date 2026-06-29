@@ -7,6 +7,37 @@ db = get_db()
 
 import os
 from werkzeug.utils import secure_filename
+from firebase_admin import messaging, firestore
+
+def send_fcm_notification(recipient_uid, title, body, type_str):
+    try:
+        firestore_db = firestore.client()
+        notif_ref = firestore_db.collection('users').document(recipient_uid).collection('notifications').document()
+        notification_id = notif_ref.id
+        
+        notif_data = {
+            'title': title,
+            'message': body,
+            'type': type_str,
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'isRead': False
+        }
+        notif_ref.set(notif_data)
+        
+        recipient_doc = firestore_db.collection('users').document(recipient_uid).get()
+        if recipient_doc.exists:
+            fcm_token = recipient_doc.to_dict().get('fcmToken')
+            if fcm_token:
+                message = messaging.Message(
+                    notification=messaging.Notification(
+                        title=title,
+                        body=body,
+                    ),
+                    token=fcm_token,
+                )
+                messaging.send(message)
+    except Exception as e:
+        print(f"Non-blocking FCM/Notification history failure: {e}")
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
@@ -112,7 +143,6 @@ def get_pending_doctors():
 @token_required
 def verify_doctor():
     try:
-        # Check admin role
         user = UserModel.get_user_by_uid(request.user['uid'])
         if not user or user.get('role') != 'admin':
             return jsonify({"error": "Unauthorized"}), 403
@@ -122,6 +152,25 @@ def verify_doctor():
         status = data.get('status')
         
         db.users.update_one({"uid": uid}, {"$set": {"status": status}})
+        
+        try:
+            firestore_db = firestore.client()
+            is_approved = status.lower() == 'verified'
+            firestore_db.collection('users').document(uid).update({
+                'status': status.lower(),
+                'verified': is_approved
+            })
+        except Exception as fe:
+            print(f"Firestore user update error: {fe}")
+
+        if status.lower() == 'verified':
+            send_fcm_notification(
+                recipient_uid=uid,
+                title='Account Approved',
+                body='Congratulations! Your Doctor account has been approved.',
+                type_str='approval'
+            )
+        
         return jsonify({"message": f"Doctor status updated to {status}"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -129,7 +178,6 @@ def verify_doctor():
 @api_blueprint.route('/doctors', methods=['GET'])
 def get_all_doctors():
     try:
-        # Get all verified doctors
         doctors = list(db.users.find({"role": "doctor", "status": "verified"}, {"_id": 0}))
         return jsonify(doctors), 200
     except Exception as e:
@@ -140,8 +188,26 @@ def get_all_doctors():
 def book_appointment():
     try:
         data = request.json
-        # {patient_id, doctor_id, date, time_slot}
         db.appointments.insert_one(data)
+        
+        try:
+            fs_data = {k: v for k, v in data.items() if k != '_id'}
+            firestore_db = firestore.client()
+            fs_data['createdAt'] = firestore.SERVER_TIMESTAMP
+            firestore_db.collection('appointments').add(fs_data)
+        except Exception as fe:
+            print(f"Firestore appointment insert error: {fe}")
+
+        doctor_id = data.get('doctor_id')
+        patient_name = data.get('patient_name', 'A patient')
+        if doctor_id:
+            send_fcm_notification(
+                recipient_uid=doctor_id,
+                title='New Appointment',
+                body=f'New appointment request from {patient_name}.',
+                type_str='new_appointment'
+            )
+            
         return jsonify({"message": "Appointment booked successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -291,3 +357,146 @@ def chat():
         return jsonify({"error": str(ve)}), 400
     except Exception as e:
         return jsonify({"error": f"Gemini API failure: {str(e)}"}), 500
+
+@api_blueprint.route('/appointments/update-status', methods=['POST'])
+@token_required
+def update_appointment_status():
+    try:
+        data = request.json
+        appointment_id = data.get('appointmentId')
+        status = data.get('status')
+        
+        firestore_db = firestore.client()
+        doc_ref = firestore_db.collection('appointments').document(appointment_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Appointment not found"}), 404
+            
+        doc_data = doc.to_dict()
+        doc_ref.update({'status': status.lower()})
+        
+        db.appointments.update_one({"id": appointment_id}, {"$set": {"status": status.lower()}})
+        
+        patient_id = doc_data.get('patient_id')
+        doctor_name = doc_data.get('doctor_name', 'Doctor')
+        if patient_id:
+            if status.lower() == 'approved':
+                send_fcm_notification(
+                    recipient_uid=patient_id,
+                    title='Appointment Accepted',
+                    body=f'Your appointment with Dr. {doctor_name} has been accepted.',
+                    type_str='appointment_accepted'
+                )
+            elif status.lower() == 'rejected':
+                send_fcm_notification(
+                    recipient_uid=patient_id,
+                    title='Appointment Declined',
+                    body=f'Your appointment with Dr. {doctor_name} was declined.',
+                    type_str='appointment_declined'
+                )
+        return jsonify({"message": "Status updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api_blueprint.route('/labs/verify', methods=['POST'])
+@token_required
+def verify_lab():
+    try:
+        user = UserModel.get_user_by_uid(request.user['uid'])
+        if not user or user.get('role') != 'admin':
+            return jsonify({"error": "Unauthorized"}), 403
+            
+        data = request.json
+        uid = data.get('uid')
+        status = data.get('status')
+        is_approved = status.lower() == 'approved'
+        
+        firestore_db = firestore.client()
+        firestore_db.collection('users').document(uid).update({
+            'status': status.lower(),
+            'verified': is_approved
+        })
+        firestore_db.collection('lab_profiles').document(uid).update({
+            'status': status.lower(),
+            'verified': is_approved
+        })
+        
+        if status.lower() == 'approved':
+            send_fcm_notification(
+                recipient_uid=uid,
+                title='Account Approved',
+                body='Congratulations! Your Laboratory account has been approved.',
+                type_str='approval'
+            )
+        return jsonify({"message": f"Lab status updated to {status}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api_blueprint.route('/lab-bookings/book', methods=['POST'])
+@token_required
+def book_lab_test():
+    try:
+        data = request.json
+        firestore_db = firestore.client()
+        booking_id = data.get('bookingId')
+        if not booking_id:
+            doc_ref = firestore_db.collection('lab_bookings').document()
+            booking_id = doc_ref.id
+            data['bookingId'] = booking_id
+        else:
+            doc_ref = firestore_db.collection('lab_bookings').document(booking_id)
+            
+        data['createdAt'] = firestore.SERVER_TIMESTAMP
+        doc_ref.set(data)
+        
+        lab_id = data.get('labId')
+        patient_name = data.get('patientName', 'A patient')
+        if lab_id:
+            send_fcm_notification(
+                recipient_uid=lab_id,
+                title='New Lab Booking',
+                body=f'New lab booking request from {patient_name}.',
+                type_str='new_lab_booking'
+            )
+        return jsonify({"message": "Lab booking successfully created", "bookingId": booking_id}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api_blueprint.route('/lab-bookings/update-status', methods=['POST'])
+@token_required
+def update_lab_booking_status():
+    try:
+        data = request.json
+        booking_id = data.get('bookingId')
+        status = data.get('status')
+        
+        firestore_db = firestore.client()
+        doc_ref = firestore_db.collection('lab_bookings').document(booking_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Lab booking not found"}), 404
+            
+        doc_data = doc.to_dict()
+        doc_ref.update({'status': status.lower()})
+        
+        patient_uid = doc_data.get('uid')
+        lab_name = doc_data.get('labName', 'Laboratory')
+        if patient_uid:
+            if status.lower() == 'approved':
+                send_fcm_notification(
+                    recipient_uid=patient_uid,
+                    title='Lab Booking Accepted',
+                    body=f'Your lab booking at {lab_name} has been accepted.',
+                    type_str='lab_booking_accepted'
+                )
+            elif status.lower() == 'rejected':
+                send_fcm_notification(
+                    recipient_uid=patient_uid,
+                    title='Lab Booking Declined',
+                    body=f'Your lab booking at {lab_name} was declined.',
+                    type_str='lab_booking_declined'
+                )
+        return jsonify({"message": "Lab booking status updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
