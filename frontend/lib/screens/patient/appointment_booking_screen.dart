@@ -234,8 +234,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
         ),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+            : SafeArea(
+                bottom: true,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -443,6 +445,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                 ),
               ),
             ),
+          ),
       ),
     );
   }
