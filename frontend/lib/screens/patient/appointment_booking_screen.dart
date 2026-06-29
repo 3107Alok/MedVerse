@@ -271,63 +271,86 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                                     margin: const EdgeInsets.only(right: 12),
                                     isDarkMode: isDark,
                                     borderRadius: 16,
-                                    border: isSelected ? Border.all(color: AppTheme.primaryColor, width: 2) : null,
+                                    border: isSelected 
+                                        ? Border.all(color: AppTheme.primaryColor, width: 2) 
+                                        : Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
+                                    baseColor: isSelected
+                                        ? AppTheme.primaryColor.withOpacity(isDark ? 0.15 : 0.08)
+                                        : null,
                                     child: Padding(
                                       padding: const EdgeInsets.all(8.0),
                                       child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                      const CircleAvatar(radius: 20, child: Icon(Icons.person)),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        doc['name'],
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 12,
-                                          color: textColor,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        '$qual • Fee: ₹$fee',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 10,
-                                          color: isDark ? Colors.white70 : Colors.black54,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            width: 6,
-                                            height: 6,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: isOnline ? Colors.green : Colors.grey,
+                                          CircleAvatar(
+                                            radius: 22,
+                                            backgroundColor: isSelected
+                                                ? AppTheme.primaryColor
+                                                : (isDark ? Colors.white.withOpacity(0.12) : Colors.grey[200]),
+                                            backgroundImage: doc['profileImageUrl'] != null && doc['profileImageUrl'].toString().isNotEmpty
+                                                ? NetworkImage(doc['profileImageUrl'])
+                                                : null,
+                                            child: doc['profileImageUrl'] != null && doc['profileImageUrl'].toString().isNotEmpty
+                                                ? null
+                                                : Icon(
+                                                    Icons.person,
+                                                    size: 24,
+                                                    color: isSelected
+                                                        ? Colors.white
+                                                        : (isDark ? Colors.white70 : Colors.black54),
+                                                  ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            doc['name'],
+                                            textAlign: TextAlign.center,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 12,
+                                              color: isDark ? Colors.white : Colors.black87,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(height: 2),
                                           Text(
-                                            isOnline ? 'Online' : 'Offline',
+                                            '$qual • ₹$fee',
+                                            textAlign: TextAlign.center,
                                             style: GoogleFonts.outfit(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: isSelected
-                                                  ? (isOnline ? Colors.greenAccent[100] : Colors.white70)
-                                                  : (isOnline ? Colors.green[700] : Colors.grey[600]),
+                                              fontSize: 10,
+                                              color: isDark ? Colors.white60 : Colors.black54,
                                             ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: isOnline ? Colors.greenAccent[400] : Colors.grey,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                isOnline ? 'Online' : 'Offline',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isOnline 
+                                                      ? (isDark ? Colors.greenAccent[200] : Colors.green[800])
+                                                      : (isDark ? Colors.white38 : Colors.grey[600]),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ),
-                            );
+                                );
                           },
                           ),
                         ),

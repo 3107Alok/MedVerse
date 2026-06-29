@@ -185,12 +185,19 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
     context: context,
     backgroundColor: Colors.transparent,
     elevation: 0,
+    isScrollControlled: true,
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setStateSheet) {
           final textThemeColor = currentIsDark ? Colors.white : Colors.black87;
+          final bottomPadding = MediaQuery.of(ctx).padding.bottom;
           return Container(
-            margin: const EdgeInsets.all(16),
+            margin: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: 16 + bottomPadding,
+            ),
             child: GlassContainer(
               isDarkMode: currentIsDark,
               borderRadius: 32,
@@ -244,7 +251,8 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                       activeColor: AppTheme.primaryColor,
                     ),
                   ),
-              ListTile(
+                  Divider(color: currentIsDark ? Colors.white10 : Colors.black12, height: 16),
+                  ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(
                   Icons.notifications_outlined,
@@ -265,6 +273,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                   );
                 },
               ),
+              Divider(color: currentIsDark ? Colors.white10 : Colors.black12, height: 16),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(
@@ -386,7 +395,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                   );
                 },
               ),
-              const SizedBox(height: 16),
+              Divider(color: currentIsDark ? Colors.white10 : Colors.black12, height: 16),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(
@@ -532,7 +541,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                   );
                 },
               ),
-              const SizedBox(height: 16),
+              Divider(color: currentIsDark ? Colors.white10 : Colors.black12, height: 16),
               InkWell(
                 onTap: () {
                   Navigator.pop(context); // Close the settings sheet
@@ -556,7 +565,7 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 8.0),
                   child: Row(
                     children: [
                       const Icon(Icons.logout_rounded, color: AppTheme.errorColor),
