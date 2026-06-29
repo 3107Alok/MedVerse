@@ -57,10 +57,10 @@ class MedVerseApp extends StatelessWidget {
         '/patient-home': (context) => const PatientDashboard(),
         '/doctor-home': (context) => const DoctorDashboard(),
         '/admin-home': (context) => const AdminDashboard(),
-        '/lab-dashboard': (context) => const LabDashboard(),
+        '/lab-dashboard': (context) => LabDashboard(),
         '/chatbot': (context) => const ChatbotScreen(),
         '/book-appointment': (context) => const AppointmentBookingScreen(),
-        '/book-lab': (context) => const LabBookingScreen(),
+        '/book-lab': (context) => LabBookingScreen(),
         '/medicine-reminders': (context) => const MedicineReminderScreen(),
         '/ocr-reader': (context) => const PrescriptionReaderScreen(),
         '/medical-history': (context) => const MedicalHistoryScreen(),
@@ -117,7 +117,7 @@ class AuthWrapper extends StatelessWidget {
         }
         if (role == UserRole.labOwner) {
           if (user.status == 'approved' || user.verified) {
-            return const LabDashboard();
+            return LabDashboard();
           } else {
             return const LabPendingScreen();
           }
