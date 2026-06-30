@@ -8,6 +8,8 @@ import 'package:frontend/theme/theme_notifier.dart';
 import 'package:frontend/theme/glassmorphism.dart';
 import 'package:frontend/theme/app_theme.dart';
 import 'package:intl/intl.dart';
+import 'package:frontend/widgets/empty_state_widget.dart';
+import 'package:frontend/widgets/shimmer_loader.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -143,7 +145,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
         body: _isCleaning
-            ? const Center(child: CircularProgressIndicator())
+            ? Scaffold(
+                backgroundColor: Colors.transparent,
+                body: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: 5,
+                  itemBuilder: (context, index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: ShimmerWidget(width: double.infinity, height: 80, borderRadius: 16),
+                  ),
+                ),
+              )
             : SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -175,159 +187,151 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                       const SizedBox(height: 16),
                       Expanded(
-                        child: StreamBuilder<QuerySnapshot>(
-                          stream: _db
-                              .collection('users')
-                              .doc(user.uid)
-                              .collection('notifications')
-                              .orderBy('createdAt', descending: true)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasError) {
-                              return Center(
-                                child: Text(
-                                  'Error loading notifications',
-                                  style: GoogleFonts.outfit(color: Colors.red),
-                                ),
-                              );
-                            }
-
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
-                            }
-
-                            final docs = snapshot.data?.docs ?? [];
-
-                            if (docs.isEmpty) {
-                              return Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.notifications_off_outlined,
-                                      size: 64,
-                                      color: isDark ? Colors.grey[700] : Colors.grey[300],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No notifications yet',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: subtitleColor,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Alerts regarding approvals and bookings will appear here.',
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 13,
-                                        color: isDark ? Colors.white60 : Colors.grey[500],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-
-                            return ListView.builder(
-                              physics: const BouncingScrollPhysics(),
-                              itemCount: docs.length,
-                              itemBuilder: (context, index) {
-                                final doc = docs[index];
-                                final data = doc.data() as Map<String, dynamic>;
-                                final isRead = data['isRead'] ?? false;
-                                final timestamp = data['createdAt'] as Timestamp?;
-                                final timeStr = timestamp != null
-                                    ? DateFormat('hh:mm a').format(timestamp.toDate())
-                                    : '';
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12.0),
-                                  child: Dismissible(
-                                    key: Key(doc.id),
-                                    direction: DismissDirection.endToStart,
-                                    background: Container(
-                                      alignment: Alignment.centerRight,
-                                      padding: const EdgeInsets.only(right: 20),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.8),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: const Icon(Icons.delete, color: Colors.white),
-                                    ),
-                                    onDismissed: (direction) {
-                                      doc.reference.delete();
-                                    },
-                                    child: GlassContainer(
-                                      isDarkMode: isDark,
-                                      borderRadius: 16,
-                                      border: isRead
-                                          ? null
-                                          : Border.all(
-                                              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                                              width: 1.5,
-                                            ),
-                                      child: ListTile(
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        leading: CircleAvatar(
-                                          backgroundColor: isRead
-                                              ? (isDark ? Colors.white10 : Colors.grey[100])
-                                              : Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                                          child: Icon(
-                                            Icons.notifications,
-                                            color: isRead
-                                                ? (isDark ? Colors.white54 : Colors.grey)
-                                                : Theme.of(context).colorScheme.primary,
-                                          ),
-                                        ),
-                                        title: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                data['title'] ?? 'Alert',
-                                                style: GoogleFonts.outfit(
-                                                  fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                                                  fontSize: 15,
-                                                  color: textColor,
-                                                ),
-                                              ),
-                                            ),
-                                            Text(
-                                              timeStr,
-                                              style: GoogleFonts.outfit(
-                                                fontSize: 11,
-                                                color: isDark ? Colors.white38 : Colors.grey[500],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        subtitle: Padding(
-                                          padding: const EdgeInsets.only(top: 4.0),
-                                          child: Text(
-                                            data['message'] ?? '',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 13,
-                                              color: isRead
-                                                  ? (isDark ? Colors.white60 : Colors.grey[600])
-                                                  : (isDark ? Colors.white70 : Colors.black87),
-                                            ),
-                                          ),
-                                        ),
-                                        onTap: () {
-                                          if (!isRead) {
-                                            doc.reference.update({'isRead': true});
-                                          }
-                                        },
-                                      ),
-                                    ),
+                        child: RefreshIndicator(
+                          onRefresh: _cleanOldNotifications,
+                          child: StreamBuilder<QuerySnapshot>(
+                            stream: _db
+                                .collection('users')
+                                .doc(user.uid)
+                                .collection('notifications')
+                                .orderBy('createdAt', descending: true)
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasError) {
+                                return Center(
+                                  child: Text(
+                                    'Error loading notifications',
+                                    style: GoogleFonts.outfit(color: Colors.red),
                                   ),
                                 );
-                              },
-                            );
-                          },
+                              }
+
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: 5,
+                                  itemBuilder: (context, index) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: ShimmerWidget(width: double.infinity, height: 80, borderRadius: 16),
+                                  ),
+                                );
+                              }
+
+                              final docs = snapshot.data?.docs ?? [];
+
+                              if (docs.isEmpty) {
+                                return ListView(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  children: const [
+                                    SizedBox(height: 100),
+                                    EmptyStateWidget(
+                                      icon: Icons.notifications_none_outlined,
+                                      title: 'All Caught Up!',
+                                      description: 'You have no new notifications at the moment.',
+                                    ),
+                                  ],
+                                );
+                              }
+
+                              return ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                itemCount: docs.length,
+                                itemBuilder: (context, index) {
+                                  final doc = docs[index];
+                                  final data = doc.data() as Map<String, dynamic>;
+                                  final isRead = data['isRead'] ?? false;
+                                  final timestamp = data['createdAt'] as Timestamp?;
+                                  final timeStr = timestamp != null
+                                      ? DateFormat('hh:mm a').format(timestamp.toDate())
+                                      : '';
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12.0),
+                                    child: Dismissible(
+                                      key: Key(doc.id),
+                                      direction: DismissDirection.endToStart,
+                                      background: Container(
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.only(right: 20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.8),
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        child: const Icon(Icons.delete, color: Colors.white),
+                                      ),
+                                      onDismissed: (direction) {
+                                        doc.reference.delete();
+                                      },
+                                      child: GlassContainer(
+                                        isDarkMode: isDark,
+                                        borderRadius: 16,
+                                        border: isRead
+                                            ? null
+                                            : Border.all(
+                                                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                                                width: 1.5,
+                                              ),
+                                        child: ListTile(
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          leading: CircleAvatar(
+                                            backgroundColor: isRead
+                                                ? (isDark ? Colors.white10 : Colors.grey[100])
+                                                : Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                                            child: Icon(
+                                              Icons.notifications,
+                                              color: isRead
+                                                  ? (isDark ? Colors.white54 : Colors.grey)
+                                                  : Theme.of(context).colorScheme.primary,
+                                            ),
+                                          ),
+                                          title: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  data['title'] ?? 'Alert',
+                                                  style: GoogleFonts.outfit(
+                                                    fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
+                                                    fontSize: 15,
+                                                    color: textColor,
+                                                  ),
+                                                ),
+                                              ),
+                                              Text(
+                                                timeStr,
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 11,
+                                                  color: isDark ? Colors.white38 : Colors.grey[500],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          subtitle: Padding(
+                                            padding: const EdgeInsets.only(top: 4.0),
+                                            child: Text(
+                                              data['message'] ?? '',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 13,
+                                                color: isRead
+                                                    ? (isDark ? Colors.white60 : Colors.grey[600])
+                                                    : (isDark ? Colors.white70 : Colors.black87),
+                                              ),
+                                            ),
+                                          ),
+                                          onTap: () {
+                                            if (!isRead) {
+                                              doc.reference.update({'isRead': true});
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),

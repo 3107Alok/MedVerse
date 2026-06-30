@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +14,8 @@ import 'package:frontend/theme/theme_notifier.dart';
 import 'package:frontend/theme/glassmorphism.dart';
 import 'package:frontend/widgets/shared_glass_components.dart';
 import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/widgets/empty_state_widget.dart';
+import 'package:frontend/widgets/shimmer_loader.dart';
 
 class DoctorDashboard extends StatefulWidget {
   const DoctorDashboard({super.key});
@@ -572,15 +575,17 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
   List<Map<String, dynamic>> _appointments = [];
   bool _isLoading = true;
   final Set<String> _selectedPendingIds = {};
+  String _selectedTab = 'pending';
+  StreamSubscription? _appointmentsSub;
 
   @override
   void initState() {
     super.initState();
-    _fetchAppointments();
+    _initStream();
   }
 
-  void _fetchAppointments() {
-    _bookingService.getDoctorAppointmentsStream(widget.doctorId).listen((data) {
+  void _initStream() {
+    _appointmentsSub = _bookingService.getDoctorAppointmentsStream(widget.doctorId).listen((data) {
       if (mounted) {
         setState(() {
           _appointments = data;
@@ -590,12 +595,47 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
     });
   }
 
+  Future<void> _handleRefresh() async {
+    _appointmentsSub?.cancel();
+    try {
+      final data = await _bookingService.getDoctorAppointmentsStream(widget.doctorId).first;
+      if (mounted) {
+        setState(() {
+          _appointments = data;
+        });
+      }
+    } catch (_) {}
+    if (mounted) {
+      _initStream();
+    }
+  }
+
+  @override
+  void dispose() {
+    _appointmentsSub?.cancel();
+    super.dispose();
+  }
+
   Future<void> _updateStatus(String id, String status) async {
     try {
       await _bookingService.updateAppointmentStatus(id, status);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Appointment $status successfully.')),
+        final isDark = widget.isDarkMode;
+        final appt = _appointments.firstWhere((a) => a['id'] == id, orElse: () => {});
+        final patientName = appt['patient_name'] ?? 'Patient';
+        final date = appt['date'] ?? '';
+        final timeSlot = appt['time_slot'] ?? '';
+
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: status == 'completed' ? 'Appointment Completed' : 'Status Updated',
+          message: 'Appointment has been ${status == 'completed' ? 'completed' : status} successfully.',
+          details: [
+            {'label': 'Patient', 'value': patientName},
+            {'label': 'Date', 'value': date},
+            {'label': 'Time Slot', 'value': timeSlot},
+          ],
         );
       }
     } catch (_) {
@@ -611,6 +651,7 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
     if (_selectedPendingIds.isEmpty) return;
     
     try {
+      final count = _selectedPendingIds.length;
       for (final id in _selectedPendingIds) {
         await _bookingService.updateAppointmentStatus(id, status);
       }
@@ -620,8 +661,13 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bulk $status updated successfully.')),
+        final isDark = widget.isDarkMode;
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: 'Bulk Action Complete',
+          message: '$count requests have been ${status == 'approved' ? 'approved' : 'rejected'} successfully.',
+          details: const [],
         );
       }
     } catch (_) {
@@ -633,10 +679,71 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
     }
   }
 
+  Widget _buildStatCard(String label, String value, Color color, IconData icon, bool isDark, {bool isActive = false, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: GlassContainer(
+        isDarkMode: isDark,
+        borderRadius: 16,
+        showAccentCircle: true,
+        border: isActive ? Border.all(color: color, width: 2) : null,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, color: color, size: 20),
+                Text(
+                  value,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: isDark ? Colors.white70 : Colors.grey[700],
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final bgColor = isDark ? const Color(0xFF0F0F1A) : Colors.white;
+
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: 4,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: ShimmerWidget(width: double.infinity, height: 120, borderRadius: 20),
+            );
+          },
+        ),
+      );
     }
 
     final pending = _appointments
@@ -650,62 +757,112 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
       return date == todayStr && (status == 'approved' || status == 'checked_in');
     }).toList();
 
-    final isDark = widget.isDarkMode;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final bgColor = isDark ? const Color(0xFF0F0F1A) : Colors.white;
+    final approvedAll = _appointments.where((appt) {
+      final status = appt['status']?.toString().toLowerCase() ?? '';
+      return status == 'approved';
+    }).toList();
 
-    return DefaultTabController(
-      length: 2,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.getBackgroundGradient(isDark),
+      ),
       child: Scaffold(
-        backgroundColor: bgColor,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(110),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Manage Schedules',
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
-                    ),
-                    TextButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DoctorHistoryScreen(appointments: _appointments),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.history, size: 16),
-                      label: const Text('View History'),
-                    ),
-                  ],
-                ),
-              ),
-              TabBar(
-                labelColor: isDark ? Colors.white : Colors.black87,
-                unselectedLabelColor: isDark ? Colors.white54 : Colors.black54,
-                indicatorColor: Theme.of(context).primaryColor,
-                tabs: const [
-                  Tab(text: 'Pending Requests'),
-                  Tab(text: 'Today\'s Approved'),
-                ],
-              ),
-            ],
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Appointments',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor),
           ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
         ),
-        body: TabBarView(
-          children: [
-            // PENDING REQUESTS VIEW
-            _buildPendingRequestsList(pending),
-            
-            // APPROVED APPOINTMENTS VIEW
-            _buildApprovedAppointmentsList(approved),
-          ],
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.5,
+              children: [
+                _buildStatCard(
+                  'Pending',
+                  pending.length.toString(),
+                  Colors.orange,
+                  Icons.hourglass_empty_outlined,
+                  isDark,
+                  isActive: false,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorPendingRequestsScreen(
+                          doctorId: widget.doctorId,
+                          isDarkMode: isDark,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildStatCard(
+                  'History',
+                  'View',
+                  Colors.indigo,
+                  Icons.history,
+                  isDark,
+                  isActive: false,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorHistoryScreen(appointments: _appointments),
+                      ),
+                    );
+                  },
+                ),
+                _buildStatCard(
+                  'Today\'s',
+                  approved.length.toString(),
+                  Colors.blue,
+                  Icons.today_outlined,
+                  isDark,
+                  isActive: false,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorTodaysAppointmentsScreen(
+                          doctorId: widget.doctorId,
+                          isDarkMode: isDark,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildStatCard(
+                  'Approved',
+                  approvedAll.length.toString(),
+                  Colors.green,
+                  Icons.check_circle_outline,
+                  isDark,
+                  isActive: false,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorApprovedCasesScreen(
+                          doctorId: widget.doctorId,
+                          isDarkMode: isDark,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -718,221 +875,229 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
     final subtitleColor = isDark ? Colors.white60 : Colors.grey[600];
 
     if (pendingList.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.hourglass_empty_outlined, size: 48, color: isDark ? Colors.grey[700] : Colors.grey[400]),
-            const SizedBox(height: 12),
-            Text('No pending requests found.', style: GoogleFonts.outfit(color: subtitleColor)),
+      return RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 100),
+            EmptyStateWidget(
+              icon: Icons.hourglass_empty_outlined,
+              title: 'No Pending Requests',
+              description: 'You have no pending appointment requests at the moment.',
+            ),
           ],
         ),
       );
     }
 
-    return Column(
-      children: [
-        if (_selectedPendingIds.isNotEmpty)
-          Container(
-            color: theme.primaryColor.withOpacity(0.08),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_selectedPendingIds.length} requests selected',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: theme.primaryColor),
-                ),
-                Row(
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _bulkAction('rejected'),
-                      icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                      label: const Text('Reject', style: TextStyle(color: Colors.red)),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () => _bulkAction('approved'),
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('Approve'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: pendingList.length,
-            itemBuilder: (context, index) {
-              final appt = pendingList[index];
-              final id = appt['id'] ?? '';
-              final isSelected = _selectedPendingIds.contains(id);
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: GlassContainer(
-                  isDarkMode: isDark,
-                  borderRadius: 16,
-                  border: isSelected ? Border.all(color: theme.primaryColor, width: 2) : null,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: Column(
+        children: [
+          if (_selectedPendingIds.isNotEmpty)
+            Container(
+              color: theme.primaryColor.withOpacity(0.08),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${_selectedPendingIds.length} requests selected',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: theme.primaryColor),
+                  ),
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: isSelected,
-                            onChanged: (val) {
-                              setState(() {
-                                if (val == true) {
-                                  _selectedPendingIds.add(id);
-                                } else {
-                                  _selectedPendingIds.remove(id);
-                                }
-                              });
-                            },
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  appt['patient_name'] ?? 'Patient Profile',
-                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text('ID: ${appt['patient_id'] ?? ''}', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isDark ? Colors.blue.withOpacity(0.15) : Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'Profile Linked',
-                                  style: GoogleFonts.outfit(fontSize: 10, color: isDark ? Colors.blue[300] : Colors.blue[800], fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              FutureBuilder<List<Map<String, dynamic>>>(
-                                future: BookingService().getPatientReports(appt['patient_id'] ?? ''),
-                                builder: (context, snapshot) {
-                                  if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.description, size: 10, color: Colors.red),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Reports (${snapshot.data!.length})',
-                                            style: GoogleFonts.outfit(fontSize: 9, color: Colors.red, fontWeight: FontWeight.bold),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }
-                                  return const SizedBox.shrink();
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
+                      TextButton.icon(
+                        onPressed: () => _bulkAction('rejected'),
+                        icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                        label: const Text('Reject', style: TextStyle(color: Colors.red)),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_today, size: 16, color: subtitleColor),
-                          const SizedBox(width: 4),
-                          Text(appt['date'] ?? '', style: GoogleFonts.outfit(fontSize: 14, color: textColor)),
-                          const SizedBox(width: 16),
-                          Icon(Icons.access_time, size: 16, color: subtitleColor),
-                          const SizedBox(width: 4),
-                          Text(appt['time_slot'] ?? '', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text('Symptoms / Problem:', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor, fontWeight: FontWeight.w500)),
-                      Text(appt['symptoms'] ?? 'No symptoms specified', style: GoogleFonts.outfit(fontSize: 14, color: textColor)),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => PatientDetailsScreen(patientId: appt['patient_id']),
-                                  ),
-                                );
-                              },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                textStyle: const TextStyle(fontSize: 12),
-                                minimumSize: const Size(0, 36),
-                              ),
-                              child: const Text('View Reports', maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => _updateStatus(id, 'rejected'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                textStyle: const TextStyle(fontSize: 12),
-                                minimumSize: const Size(0, 36),
-                              ),
-                              child: const Text('Reject', maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () => _updateStatus(id, 'approved'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                textStyle: const TextStyle(fontSize: 12),
-                                minimumSize: const Size(0, 36),
-                              ),
-                              child: const Text('Approve', maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _bulkAction('approved'),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Approve'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
-            );
-          },
+            ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: pendingList.length,
+              itemBuilder: (context, index) {
+                final appt = pendingList[index];
+                final id = appt['id'] ?? '';
+                final isSelected = _selectedPendingIds.contains(id);
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GlassContainer(
+                    isDarkMode: isDark,
+                    borderRadius: 16,
+                    border: isSelected ? Border.all(color: theme.primaryColor, width: 2) : null,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: isSelected,
+                              onChanged: (val) {
+                                setState(() {
+                                  if (val == true) {
+                                    _selectedPendingIds.add(id);
+                                  } else {
+                                    _selectedPendingIds.remove(id);
+                                  }
+                                });
+                              },
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    appt['patient_name'] ?? 'Patient Profile',
+                                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text('ID: ${appt['patient_id'] ?? ''}', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.blue.withOpacity(0.15) : Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Profile Linked',
+                                    style: GoogleFonts.outfit(fontSize: 10, color: isDark ? Colors.blue[300] : Colors.blue[800], fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                FutureBuilder<List<Map<String, dynamic>>>(
+                                  future: BookingService().getPatientReports(appt['patient_id'] ?? ''),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.description, size: 10, color: Colors.red),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Reports (${snapshot.data!.length})',
+                                              style: GoogleFonts.outfit(fontSize: 9, color: Colors.red, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 16, color: subtitleColor),
+                            const SizedBox(width: 4),
+                            Text(appt['date'] ?? '', style: GoogleFonts.outfit(fontSize: 14, color: textColor)),
+                            const SizedBox(width: 16),
+                            Icon(Icons.access_time, size: 16, color: subtitleColor),
+                            const SizedBox(width: 4),
+                            Text(appt['time_slot'] ?? '', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text('Symptoms / Problem:', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor, fontWeight: FontWeight.w500)),
+                        Text(appt['symptoms'] ?? 'No symptoms specified', style: GoogleFonts.outfit(fontSize: 14, color: textColor)),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => PatientDetailsScreen(patientId: appt['patient_id']),
+                                    ),
+                                  );
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  textStyle: const TextStyle(fontSize: 12),
+                                  minimumSize: const Size(0, 36),
+                                ),
+                                child: const Text('View Reports', maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => _updateStatus(id, 'rejected'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  textStyle: const TextStyle(fontSize: 12),
+                                  minimumSize: const Size(0, 36),
+                                ),
+                                child: const Text('Reject', maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () => _updateStatus(id, 'approved'),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  textStyle: const TextStyle(fontSize: 12),
+                                  minimumSize: const Size(0, 36),
+                                ),
+                                child: const Text('Approve', maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildApprovedAppointmentsList(List<Map<String, dynamic>> approvedList) {
     final isDark = widget.isDarkMode;
@@ -940,121 +1105,137 @@ class _DoctorAppointmentsTabState extends State<DoctorAppointmentsTab> {
     final subtitleColor = isDark ? Colors.white60 : Colors.grey[600];
 
     if (approvedList.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      return RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Icon(Icons.event_available_outlined, size: 48, color: isDark ? Colors.grey[700] : Colors.grey[400]),
-            const SizedBox(height: 12),
-            Text('No approved appointments today.', style: GoogleFonts.outfit(color: subtitleColor)),
+            const SizedBox(height: 100),
+            EmptyStateWidget(
+              icon: Icons.event_available_outlined,
+              title: _selectedTab == 'today' ? 'No Appointments Today' : 'No Approved Appointments',
+              description: _selectedTab == 'today'
+                  ? 'You have no approved appointments scheduled for today.'
+                  : 'You have no approved appointments currently active.',
+            ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: approvedList.length,
-      itemBuilder: (context, index) {
-        final appt = approvedList[index];
-        final status = appt['status']?.toString().toLowerCase() ?? 'approved';
-        final isCheckedIn = status == 'checked_in';
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: approvedList.length,
+        itemBuilder: (context, index) {
+          final appt = approvedList[index];
+          final status = appt['status']?.toString().toLowerCase() ?? 'approved';
+          final isCheckedIn = status == 'checked_in';
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: GlassContainer(
-            isDarkMode: isDark,
-            borderRadius: 16,
-            border: isCheckedIn ? Border.all(color: isDark ? Colors.green[700]! : Colors.green, width: 2) : null,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      appt['patient_name'] ?? 'Patient Profile',
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isCheckedIn ? (isDark ? Colors.green.withOpacity(0.15) : Colors.green[50]) : (isDark ? Colors.blue.withOpacity(0.15) : Colors.blue[50]),
-                        borderRadius: BorderRadius.circular(8),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: GlassContainer(
+              isDarkMode: isDark,
+              borderRadius: 16,
+              border: isCheckedIn ? Border.all(color: isDark ? Colors.green[700]! : Colors.green, width: 2) : null,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        appt['patient_name'] ?? 'Patient Profile',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
                       ),
-                      child: Text(
-                        isCheckedIn ? 'Checked-In' : 'Approved',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          color: isCheckedIn ? (isDark ? Colors.green[300] : Colors.green[800]) : (isDark ? Colors.blue[300] : Colors.blue[800]),
-                          fontWeight: FontWeight.bold,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isCheckedIn ? (isDark ? Colors.green.withOpacity(0.15) : Colors.green[50]) : (isDark ? Colors.blue.withOpacity(0.15) : Colors.blue[50]),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-                 Text('ID: ${appt['patient_id'] ?? ''}', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 16, color: subtitleColor),
-                    const SizedBox(width: 4),
-                    Text(appt['time_slot'] ?? '', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.person_search_outlined),
-                      tooltip: 'Patient Details',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => PatientDetailsScreen(patientId: appt['patient_id']),
-                          ),
-                        );
-                      },
-                    ),
-                    const Spacer(),
-                    if (!isCheckedIn)
-                      Flexible(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _updateStatus(appt['id'], 'checked_in'),
-                          icon: const Icon(Icons.login_outlined, size: 16),
-                          label: const Text('Mark Checked-In', maxLines: 1, overflow: TextOverflow.ellipsis),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(0, 40),
+                        child: Text(
+                          isCheckedIn ? 'Checked-In' : 'Approved',
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            color: isCheckedIn ? (isDark ? Colors.green[300] : Colors.green[800]) : (isDark ? Colors.blue[300] : Colors.blue[800]),
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    if (isCheckedIn)
-                      Flexible(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _updateStatus(appt['id'], 'completed'),
-                          icon: const Icon(Icons.check, size: 16),
-                          label: const Text('Complete Appointment', maxLines: 1, overflow: TextOverflow.ellipsis),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(0, 40),
+                    ],
+                  ),
+                   Text('ID: ${appt['patient_id'] ?? ''}', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, size: 16, color: subtitleColor),
+                      const SizedBox(width: 4),
+                      Text(appt['time_slot'] ?? '', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.person_search_outlined),
+                        tooltip: 'Patient Details',
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PatientDetailsScreen(patientId: appt['patient_id']),
+                            ),
+                          );
+                        },
+                      ),
+                      const Spacer(),
+                      if (!isCheckedIn)
+                        Flexible(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _updateStatus(appt['id'], 'checked_in'),
+                            icon: const Icon(Icons.login_outlined, size: 16),
+                            label: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text('Mark Checked-In', style: TextStyle(fontSize: 12)),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 40),
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              ],
+                      if (isCheckedIn)
+                        Flexible(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _updateStatus(appt['id'], 'completed'),
+                            icon: const Icon(Icons.check, size: 16),
+                            label: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text('Complete Appointment', style: TextStyle(fontSize: 12)),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 40),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              ),
             ),
-            ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -1466,6 +1647,891 @@ class _DoctorProfileTabState extends State<DoctorProfileTab> {
             const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// SEPARATE VIEWS FOR DOCTOR STAT CARDS
+// ============================================================================
+
+class DoctorPendingRequestsScreen extends StatefulWidget {
+  final String doctorId;
+  final bool isDarkMode;
+
+  const DoctorPendingRequestsScreen({
+    super.key,
+    required this.doctorId,
+    required this.isDarkMode,
+  });
+
+  @override
+  State<DoctorPendingRequestsScreen> createState() => _DoctorPendingRequestsScreenState();
+}
+
+class _DoctorPendingRequestsScreenState extends State<DoctorPendingRequestsScreen> {
+  final BookingService _bookingService = BookingService();
+  List<Map<String, dynamic>> _appointments = [];
+  bool _isLoading = true;
+  final Set<String> _selectedPendingIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppointments();
+  }
+
+  Future<void> _fetchAppointments() async {
+    try {
+      final data = await _bookingService.getDoctorAppointmentsStream(widget.doctorId).first;
+      if (mounted) {
+        setState(() {
+          _appointments = data;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() => _isLoading = true);
+    await _fetchAppointments();
+  }
+
+  Future<void> _updateStatus(String id, String status) async {
+    try {
+      await _bookingService.updateAppointmentStatus(id, status);
+      if (mounted) {
+        final isDark = widget.isDarkMode;
+        final appt = _appointments.firstWhere((a) => a['id'] == id, orElse: () => {});
+        final patientName = appt['patient_name'] ?? 'Patient';
+        final date = appt['date'] ?? '';
+        final timeSlot = appt['time_slot'] ?? '';
+
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: status == 'completed' ? 'Appointment Completed' : 'Status Updated',
+          message: 'Appointment has been ${status == 'completed' ? 'completed' : status} successfully.',
+          details: [
+            {'label': 'Patient', 'value': patientName},
+            {'label': 'Date', 'value': date},
+            {'label': 'Time Slot', 'value': timeSlot},
+          ],
+          onDone: () {
+            if (mounted) {
+              setState(() {
+                _appointments.removeWhere((a) => a['id'] == id);
+              });
+            }
+          },
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update status.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _bulkAction(String status) async {
+    if (_selectedPendingIds.isEmpty) return;
+    try {
+      final count = _selectedPendingIds.length;
+      final idsToRemove = Set<String>.from(_selectedPendingIds);
+      for (final id in idsToRemove) {
+        await _bookingService.updateAppointmentStatus(id, status);
+      }
+      if (mounted) {
+        final isDark = widget.isDarkMode;
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: 'Bulk Action Complete',
+          message: '$count requests have been ${status == 'approved' ? 'approved' : 'rejected'} successfully.',
+          details: const [],
+          onDone: () {
+            if (mounted) {
+              setState(() {
+                _appointments.removeWhere((a) => idsToRemove.contains(a['id']));
+                _selectedPendingIds.clear();
+              });
+            }
+          },
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bulk action failed.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white60 : Colors.grey[600];
+    final theme = Theme.of(context);
+
+    final pendingList = _appointments
+        .where((appt) => appt['status']?.toString().toLowerCase() == 'pending')
+        .toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.getBackgroundGradient(isDark),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Pending Requests',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor),
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+        ),
+        body: _isLoading
+            ? Center(child: ShimmerWidget(width: double.infinity, height: 200, borderRadius: 20))
+            : RefreshIndicator(
+                onRefresh: _handleRefresh,
+                child: pendingList.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 100),
+                          EmptyStateWidget(
+                            icon: Icons.hourglass_empty_outlined,
+                            title: 'No Pending Requests',
+                            description: 'You have no pending appointment requests at the moment.',
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          if (_selectedPendingIds.isNotEmpty)
+                            Container(
+                              color: theme.primaryColor.withOpacity(0.08),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${_selectedPendingIds.length} requests selected',
+                                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: theme.primaryColor),
+                                  ),
+                                  Row(
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () => _bulkAction('rejected'),
+                                        icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                                        label: const Text('Reject', style: TextStyle(color: Colors.red)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      ElevatedButton.icon(
+                                        onPressed: () => _bulkAction('approved'),
+                                        icon: const Icon(Icons.check_circle_outline),
+                                        label: const Text('Approve'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: theme.primaryColor,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          Expanded(
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: pendingList.length,
+                              itemBuilder: (context, index) {
+                                final appt = pendingList[index];
+                                final id = appt['id'] ?? '';
+                                final isSelected = _selectedPendingIds.contains(id);
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: GlassContainer(
+                                    isDarkMode: isDark,
+                                    borderRadius: 16,
+                                    border: isSelected ? Border.all(color: theme.primaryColor, width: 2) : null,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: isSelected,
+                                                onChanged: (val) {
+                                                  setState(() {
+                                                    if (val == true) {
+                                                      _selectedPendingIds.add(id);
+                                                    } else {
+                                                      _selectedPendingIds.remove(id);
+                                                    }
+                                                  });
+                                                },
+                                              ),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      appt['patient_name'] ?? 'Patient Profile',
+                                                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                    Text('ID: ${appt['patient_id'] ?? ''}', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.calendar_today, size: 16, color: subtitleColor),
+                                              const SizedBox(width: 4),
+                                              Text(appt['date'] ?? '', style: GoogleFonts.outfit(fontSize: 14, color: textColor)),
+                                              const SizedBox(width: 16),
+                                              Icon(Icons.access_time, size: 16, color: subtitleColor),
+                                              const SizedBox(width: 4),
+                                              Text(appt['time_slot'] ?? '', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text('Symptoms / Problem:', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor, fontWeight: FontWeight.w500)),
+                                          Text(appt['symptoms'] ?? 'No symptoms specified', style: GoogleFonts.outfit(fontSize: 14, color: textColor)),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) => PatientDetailsScreen(patientId: appt['patient_id']),
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: const FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    child: Text('View Reports', style: TextStyle(fontSize: 11)),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () => _updateStatus(id, 'rejected'),
+                                                  style: OutlinedButton.styleFrom(
+                                                    foregroundColor: Colors.red,
+                                                    side: const BorderSide(color: Colors.red),
+                                                  ),
+                                                  child: const FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    child: Text('Reject', style: TextStyle(fontSize: 11)),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () => _updateStatus(id, 'approved'),
+                                                  child: const FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    child: Text('Approve', style: TextStyle(fontSize: 11)),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+      ),
+    );
+  }
+}
+
+class DoctorTodaysAppointmentsScreen extends StatefulWidget {
+  final String doctorId;
+  final bool isDarkMode;
+
+  const DoctorTodaysAppointmentsScreen({
+    super.key,
+    required this.doctorId,
+    required this.isDarkMode,
+  });
+
+  @override
+  State<DoctorTodaysAppointmentsScreen> createState() => _DoctorTodaysAppointmentsScreenState();
+}
+
+class _DoctorTodaysAppointmentsScreenState extends State<DoctorTodaysAppointmentsScreen> {
+  final BookingService _bookingService = BookingService();
+  List<Map<String, dynamic>> _appointments = [];
+  bool _isLoading = true;
+  final Set<String> _updatingIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppointments();
+  }
+
+  Future<void> _fetchAppointments() async {
+    try {
+      final data = await _bookingService.getDoctorAppointmentsStream(widget.doctorId).first;
+      if (mounted) {
+        setState(() {
+          _appointments = data;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() => _isLoading = true);
+    await _fetchAppointments();
+  }
+
+  Future<void> _updateStatus(String id, String status) async {
+    setState(() {
+      _updatingIds.add(id);
+    });
+    try {
+      await _bookingService.updateAppointmentStatus(id, status);
+      if (mounted) {
+        final isDark = widget.isDarkMode;
+        final appt = _appointments.firstWhere((a) => a['id'] == id, orElse: () => {});
+        final patientName = appt['patient_name'] ?? 'Patient';
+        final date = appt['date'] ?? '';
+        final timeSlot = appt['time_slot'] ?? '';
+
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: status == 'completed' ? 'Appointment Completed' : 'Status Updated',
+          message: 'Appointment has been ${status == 'completed' ? 'completed' : status} successfully.',
+          details: [
+            {'label': 'Patient', 'value': patientName},
+            {'label': 'Date', 'value': date},
+            {'label': 'Time Slot', 'value': timeSlot},
+          ],
+          onDone: () {
+            if (mounted) {
+              setState(() {
+                if (status == 'completed') {
+                  _appointments.removeWhere((a) => a['id'] == id);
+                } else {
+                  final idx = _appointments.indexWhere((a) => a['id'] == id);
+                  if (idx != -1) {
+                    _appointments[idx] = {
+                      ..._appointments[idx],
+                      'status': status,
+                    };
+                  }
+                }
+              });
+            }
+          },
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update status.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingIds.remove(id);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white60 : Colors.grey[600];
+
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final approvedList = _appointments.where((appt) {
+      final status = appt['status']?.toString().toLowerCase() ?? '';
+      final date = appt['date'] ?? '';
+      return date == todayStr && (status == 'approved' || status == 'checked_in');
+    }).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.getBackgroundGradient(isDark),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Today\'s Appointments',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor),
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+        ),
+        body: _isLoading
+            ? Center(child: ShimmerWidget(width: double.infinity, height: 200, borderRadius: 20))
+            : RefreshIndicator(
+                onRefresh: _handleRefresh,
+                child: approvedList.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 100),
+                          EmptyStateWidget(
+                            icon: Icons.event_available_outlined,
+                            title: 'No Appointments Today',
+                            description: 'You have no approved appointments scheduled for today.',
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: approvedList.length,
+                        itemBuilder: (context, index) {
+                          final appt = approvedList[index];
+                          final status = appt['status']?.toString().toLowerCase() ?? 'approved';
+                          final isCheckedIn = status == 'checked_in';
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: GlassContainer(
+                              isDarkMode: isDark,
+                              borderRadius: 16,
+                              border: isCheckedIn ? Border.all(color: isDark ? Colors.green[700]! : Colors.green, width: 2) : null,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          appt['patient_name'] ?? 'Patient Profile',
+                                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isCheckedIn ? (isDark ? Colors.green.withOpacity(0.15) : Colors.green[50]) : (isDark ? Colors.blue.withOpacity(0.15) : Colors.blue[50]),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            isCheckedIn ? 'Checked-In' : 'Approved',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 10,
+                                              color: isCheckedIn ? (isDark ? Colors.green[300] : Colors.green[800]) : (isDark ? Colors.blue[300] : Colors.blue[800]),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text('ID: ${appt['patient_id'] ?? ''}', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.access_time, size: 16, color: subtitleColor),
+                                        const SizedBox(width: 4),
+                                        Text(appt['time_slot'] ?? '', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.person_search_outlined),
+                                          tooltip: 'Patient Details',
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => PatientDetailsScreen(patientId: appt['patient_id']),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        const Spacer(),
+                                        const SizedBox(width: 8),
+                                        if (!isCheckedIn)
+                                          Expanded(
+                                            child: ElevatedButton(
+                                              onPressed: _updatingIds.contains(appt['id']) ? null : () => _updateStatus(appt['id'], 'checked_in'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.blue,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(0, 40),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                              ),
+                                              child: _updatingIds.contains(appt['id'])
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                    )
+                                                  : const FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      child: Text('Checked-In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                    ),
+                                            ),
+                                          ),
+                                        if (isCheckedIn)
+                                          Expanded(
+                                            child: ElevatedButton(
+                                              onPressed: _updatingIds.contains(appt['id']) ? null : () => _updateStatus(appt['id'], 'completed'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.green,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(0, 40),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                              ),
+                                              child: _updatingIds.contains(appt['id'])
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                    )
+                                                  : const FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      child: Text('Completed', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                    ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+      ),
+    );
+  }
+}
+
+class DoctorApprovedCasesScreen extends StatefulWidget {
+  final String doctorId;
+  final bool isDarkMode;
+
+  const DoctorApprovedCasesScreen({
+    super.key,
+    required this.doctorId,
+    required this.isDarkMode,
+  });
+
+  @override
+  State<DoctorApprovedCasesScreen> createState() => _DoctorApprovedCasesScreenState();
+}
+
+class _DoctorApprovedCasesScreenState extends State<DoctorApprovedCasesScreen> {
+  final BookingService _bookingService = BookingService();
+  List<Map<String, dynamic>> _appointments = [];
+  bool _isLoading = true;
+  final Set<String> _updatingIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppointments();
+  }
+
+  Future<void> _fetchAppointments() async {
+    try {
+      final data = await _bookingService.getDoctorAppointmentsStream(widget.doctorId).first;
+      if (mounted) {
+        setState(() {
+          _appointments = data;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() => _isLoading = true);
+    await _fetchAppointments();
+  }
+
+  Future<void> _updateStatus(String id, String status) async {
+    setState(() {
+      _updatingIds.add(id);
+    });
+    try {
+      await _bookingService.updateAppointmentStatus(id, status);
+      if (mounted) {
+        final isDark = widget.isDarkMode;
+        final appt = _appointments.firstWhere((a) => a['id'] == id, orElse: () => {});
+        final patientName = appt['patient_name'] ?? 'Patient';
+        final date = appt['date'] ?? '';
+        final timeSlot = appt['time_slot'] ?? '';
+
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: status == 'completed' ? 'Appointment Completed' : 'Status Updated',
+          message: 'Appointment has been ${status == 'completed' ? 'completed' : status} successfully.',
+          details: [
+            {'label': 'Patient', 'value': patientName},
+            {'label': 'Date', 'value': date},
+            {'label': 'Time Slot', 'value': timeSlot},
+          ],
+          onDone: () {
+            if (mounted) {
+              setState(() {
+                _appointments.removeWhere((a) => a['id'] == id);
+              });
+            }
+          },
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update status.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingIds.remove(id);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white60 : Colors.grey[600];
+
+    final approvedList = _appointments.where((appt) {
+      final status = appt['status']?.toString().toLowerCase() ?? '';
+      return status == 'approved';
+    }).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.getBackgroundGradient(isDark),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Approved Appointments',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor),
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textColor, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+        ),
+        body: _isLoading
+            ? Center(child: ShimmerWidget(width: double.infinity, height: 200, borderRadius: 20))
+            : RefreshIndicator(
+                onRefresh: _handleRefresh,
+                child: approvedList.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 100),
+                          EmptyStateWidget(
+                            icon: Icons.event_available_outlined,
+                            title: 'No Approved Appointments',
+                            description: 'You have no approved appointments currently active.',
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: approvedList.length,
+                        itemBuilder: (context, index) {
+                          final appt = approvedList[index];
+                          final status = appt['status']?.toString().toLowerCase() ?? 'approved';
+                          final isCheckedIn = status == 'checked_in';
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: GlassContainer(
+                              isDarkMode: isDark,
+                              borderRadius: 16,
+                              border: isCheckedIn ? Border.all(color: isDark ? Colors.green[700]! : Colors.green, width: 2) : null,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          appt['patient_name'] ?? 'Patient Profile',
+                                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isCheckedIn ? (isDark ? Colors.green.withOpacity(0.15) : Colors.green[50]) : (isDark ? Colors.blue.withOpacity(0.15) : Colors.blue[50]),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            isCheckedIn ? 'Checked-In' : 'Approved',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 10,
+                                              color: isCheckedIn ? (isDark ? Colors.green[300] : Colors.green[800]) : (isDark ? Colors.blue[300] : Colors.blue[800]),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text('ID: ${appt['patient_id'] ?? ''}', style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.calendar_today, size: 16, color: subtitleColor),
+                                        const SizedBox(width: 4),
+                                        Text(appt['date'] ?? '', style: GoogleFonts.outfit(fontSize: 14, color: textColor)),
+                                        const SizedBox(width: 16),
+                                        Icon(Icons.access_time, size: 16, color: subtitleColor),
+                                        const SizedBox(width: 4),
+                                        Text(appt['time_slot'] ?? '', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.person_search_outlined),
+                                          tooltip: 'Patient Details',
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => PatientDetailsScreen(patientId: appt['patient_id']),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        const Spacer(),
+                                        const SizedBox(width: 8),
+                                        if (!isCheckedIn)
+                                          Expanded(
+                                            child: ElevatedButton(
+                                              onPressed: _updatingIds.contains(appt['id']) ? null : () => _updateStatus(appt['id'], 'checked_in'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.blue,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(0, 40),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                              ),
+                                              child: _updatingIds.contains(appt['id'])
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                    )
+                                                  : const FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      child: Text('Checked-In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                    ),
+                                            ),
+                                          ),
+                                        if (isCheckedIn)
+                                          Expanded(
+                                            child: ElevatedButton(
+                                              onPressed: _updatingIds.contains(appt['id']) ? null : () => _updateStatus(appt['id'], 'completed'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.green,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(0, 40),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                              ),
+                                              child: _updatingIds.contains(appt['id'])
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                    )
+                                                  : const FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      child: Text('Completed', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                                    ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
       ),
     );
   }

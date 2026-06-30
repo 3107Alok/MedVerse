@@ -30,6 +30,7 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
   LabProfileModel? _selectedLab;
   String? _selectedSlot;
   final _symptomsController = TextEditingController();
+  bool _isBooking = false;
 
   List<LabProfileModel> _availableLabs = [];
   bool _isLoadingLabs = false;
@@ -145,7 +146,7 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
   }
 
   Future<void> _confirmBooking() async {
-    if (!_formKey.currentState!.validate() || _selectedLab == null || _selectedSlot == null) {
+    if (!_formKey.currentState!.validate() || _selectedLab == null || _selectedSlot == null || _isBooking) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select lab, date, slot & enter symptoms.')),
       );
@@ -153,31 +154,77 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final testName = _selectedTest!.split(' (').first;
-    final price = _selectedLab!.services[testName]?.price ?? 500.0;
+    final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
+    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
 
-    final bookingData = {
-      'patientId': authProvider.user?.uid,
-      'patientName': authProvider.user?.name ?? 'Patient',
-      'labId': _selectedLab!.labId,
-      'labName': _selectedLab!.labName,
-      'testName': testName,
-      'price': price,
-      'date': DateFormat('yyyy-MM-dd').format(_selectedDate!),
-      'time_slot': _selectedSlot,
-      'symptoms': _symptomsController.text.trim(),
-    };
+    setState(() {
+      _isBooking = true;
+    });
 
     try {
+      // Check if user already booked this lab on this day
+      final existingQuery = await FirebaseFirestore.instance
+          .collection('lab_bookings')
+          .where('patientId', isEqualTo: authProvider.user?.uid)
+          .where('labId', isEqualTo: _selectedLab!.labId)
+          .where('date', isEqualTo: dateStr)
+          .get();
+
+      if (existingQuery.docs.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _isBooking = false;
+          });
+          showGlassAlertDialog(
+            context: context,
+            isDarkMode: isDark,
+            title: 'Request Exists',
+            message: 'You already have a booking request with this lab for this date.',
+          );
+        }
+        return;
+      }
+
+      final testName = _selectedTest!.split(' (').first;
+      final price = _selectedLab!.services[testName]?.price ?? 500.0;
+
+      final bookingData = {
+        'patientId': authProvider.user?.uid,
+        'patientName': authProvider.user?.name ?? 'Patient',
+        'labId': _selectedLab!.labId,
+        'labName': _selectedLab!.labName,
+        'testName': testName,
+        'price': price,
+        'date': dateStr,
+        'time_slot': _selectedSlot,
+        'symptoms': _symptomsController.text.trim(),
+      };
       await _labService.bookLabTest(bookingData);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lab Appointment Booked Successfully!')),
+        final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: 'Booking Confirmed',
+          message: 'Lab test booked successfully!\nPlease wait for approval from the lab.',
+          details: [
+            {'label': 'Lab', 'value': _selectedLab!.labName},
+            {'label': 'Test', 'value': testName},
+            {'label': 'Date', 'value': DateFormat('EEEE, MMM d, yyyy').format(_selectedDate!)},
+            {'label': 'Time Slot', 'value': _selectedSlot ?? ''},
+          ],
+          onDone: () {
+            if (mounted) {
+              Navigator.pop(context);
+            }
+          },
         );
-        Navigator.pop(context);
       }
     } catch (_) {
       if (mounted) {
+        setState(() {
+          _isBooking = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Booking Failed. Please try again.')),
         );
@@ -417,15 +464,21 @@ class _LabBookingScreenState extends State<LabBookingScreen> {
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton(
-                  onPressed: _confirmBooking,
+                  onPressed: _isBooking ? null : _confirmBooking,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: Text(
-                    'Book Test Now',
-                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isBooking
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : Text(
+                          'Book Test Now',
+                          style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ],
             ],

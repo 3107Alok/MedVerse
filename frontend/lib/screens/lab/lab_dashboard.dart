@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +15,8 @@ import 'package:frontend/services/lab_service.dart';
 import 'package:frontend/theme/glassmorphism.dart';
 import 'package:frontend/widgets/shared_glass_components.dart';
 import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/widgets/empty_state_widget.dart';
+import 'package:frontend/widgets/shimmer_loader.dart';
 
 class LabDashboard extends StatefulWidget {
   const LabDashboard({super.key});
@@ -365,6 +368,7 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
 
   List<Map<String, dynamic>> _bookings = [];
   bool _isLoading = true;
+  StreamSubscription? _bookingsSub;
 
   // File upload state mapping: bookingId -> progress/status
   final Map<String, double> _uploadProgress = {};
@@ -374,18 +378,12 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _fetchBookings();
+    _initStream();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  void _fetchBookings() {
+  void _initStream() {
     final labId = Provider.of<AuthProvider>(context, listen: false).user?.uid ?? '';
-    _labService.getLabBookingsStream(labId).listen((bookingsList) {
+    _bookingsSub = _labService.getLabBookingsStream(labId).listen((bookingsList) {
       if (mounted) {
         setState(() {
           _bookings = bookingsList;
@@ -393,6 +391,106 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
         });
       }
     });
+  }
+
+  Future<void> _handleRefresh() async {
+    _bookingsSub?.cancel();
+    try {
+      final labId = Provider.of<AuthProvider>(context, listen: false).user?.uid ?? '';
+      final data = await _labService.getLabBookingsStream(labId).first;
+      if (mounted) {
+        setState(() {
+          _bookings = data;
+        });
+      }
+    } catch (_) {}
+    if (mounted) {
+      _initStream();
+    }
+  }
+
+  Future<void> _updateStatus(String bookingId, String status) async {
+    try {
+      await _labService.updateBookingStatus(bookingId, status);
+      if (mounted) {
+        final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
+        final b = _bookings.firstWhere((item) => item['bookingId'] == bookingId, orElse: () => {});
+        final patientName = b['patientName'] ?? 'Patient';
+        final testName = b['testName'] ?? 'Lab Test';
+        final date = b['date'] ?? '';
+        final slot = b['time_slot'] ?? '';
+
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: 'Status Updated',
+          message: 'Booking status has been updated to $status successfully.',
+          details: [
+            {'label': 'Patient', 'value': patientName},
+            {'label': 'Test', 'value': testName},
+            {'label': 'Date', 'value': date},
+            {'label': 'Time Slot', 'value': slot},
+          ],
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update status.')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _bookingsSub?.cancel();
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildStatCard(String label, String value, Color color, IconData icon, bool isDark, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: GlassContainer(
+        isDarkMode: isDark,
+        borderRadius: 16,
+        showAccentCircle: true,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, color: color, size: 18),
+                Text(
+                  value,
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                color: isDark ? Colors.white70 : Colors.grey[700],
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<Map<String, dynamic>> _getFilteredList(String status) {
@@ -540,12 +638,9 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
                 final id = controller.text.trim();
                 final bookingExists = _bookings.any((b) => b['bookingId'] == id && b['status'] == 'accepted');
                 if (bookingExists) {
-                  await _labService.updateBookingStatus(id, 'checked_in');
+                  await _updateStatus(id, 'checked_in');
                   if (mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Checked In Booking: $id')),
-                    );
                   }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -568,14 +663,78 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
     final subtitleColor = isDark ? Colors.white60 : Colors.grey[700];
 
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0F0F1A) : Colors.grey[50],
+        body: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: 4,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: ShimmerWidget(width: double.infinity, height: 120, borderRadius: 20),
+            );
+          },
+        ),
+      );
     }
+
+    final pendingCount = _bookings.where((b) => b['status']?.toString().toLowerCase() == 'pending').length;
+    final acceptedCount = _bookings.where((b) => b['status']?.toString().toLowerCase() == 'accepted').length;
+    final checkedInCount = _bookings.where((b) => b['status']?.toString().toLowerCase() == 'checked_in').length;
+    final completedCount = _bookings.where((b) => b['status']?.toString().toLowerCase() == 'completed').length;
 
     return Column(
       children: [
+        // Grid of 4 responsive statistic cards at the top
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 2.2,
+            children: [
+              _buildStatCard(
+                'Pending',
+                pendingCount.toString(),
+                Colors.orange,
+                Icons.hourglass_empty,
+                isDark,
+                onTap: () => _tabController.animateTo(0),
+              ),
+              _buildStatCard(
+                'Accepted',
+                acceptedCount.toString(),
+                Colors.blue,
+                Icons.check,
+                isDark,
+                onTap: () => _tabController.animateTo(1),
+              ),
+              _buildStatCard(
+                'Checked-In',
+                checkedInCount.toString(),
+                Colors.indigo,
+                Icons.where_to_vote,
+                isDark,
+                onTap: () => _tabController.animateTo(2),
+              ),
+              _buildStatCard(
+                'Completed',
+                completedCount.toString(),
+                Colors.green,
+                Icons.check_circle_outline,
+                isDark,
+                onTap: () => _tabController.animateTo(3),
+              ),
+            ],
+          ),
+        ),
+
         // Search & Filter Panel
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           child: Column(
             children: [
               TextFormField(
@@ -702,153 +861,169 @@ class _LabManagementTabState extends State<LabManagementTab> with SingleTickerPr
     final subtitleColor = isDark ? Colors.white60 : Colors.grey[700];
 
     if (list.isEmpty) {
-      return Center(
-        child: Text(
-          'No bookings matching filters.',
-          style: GoogleFonts.outfit(color: subtitleColor),
+      return RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            const SizedBox(height: 60),
+            EmptyStateWidget(
+              icon: status == 'pending'
+                  ? Icons.hourglass_empty
+                  : (status == 'accepted'
+                      ? Icons.check
+                      : (status == 'checked_in' ? Icons.where_to_vote : Icons.check_circle_outline)),
+              title: 'No ${status[0].toUpperCase()}${status.substring(1)} Bookings',
+              description: 'No bookings match this category.',
+            ),
+          ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: list.length,
-      itemBuilder: (context, index) {
-        final b = list[index];
-        final id = b['bookingId'] ?? '';
-        final patientName = b['patientName'] ?? 'Patient';
-        final testName = b['testName'] ?? 'Lab Test';
-        final slot = b['time_slot'] ?? '';
-        final date = b['date'] ?? '';
-        final symptoms = b['symptoms'] ?? 'No comments';
-        final pdfUrl = b['reportFileId'];
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: list.length,
+        itemBuilder: (context, index) {
+          final b = list[index];
+          final id = b['bookingId'] ?? '';
+          final patientName = b['patientName'] ?? 'Patient';
+          final testName = b['testName'] ?? 'Lab Test';
+          final slot = b['time_slot'] ?? '';
+          final date = b['date'] ?? '';
+          final symptoms = b['symptoms'] ?? 'No comments';
+          final pdfUrl = b['reportFileId'];
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: GlassContainer(
-            isDarkMode: isDark,
-            borderRadius: 16,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      patientName,
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    'ID: $id',
-                    style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Test: $testName',
-                style: GoogleFonts.outfit(fontSize: 14, color: textColor, fontWeight: FontWeight.w500),
-              ),
-              Text(
-                'Slot: $date  •  $slot',
-                style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Patient Symptoms / Reason:',
-                style: GoogleFonts.outfit(fontSize: 11, color: subtitleColor, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                symptoms,
-                style: GoogleFonts.outfit(fontSize: 13, color: textColor),
-              ),
-              const SizedBox(height: 12),
-              if (_uploadStatus.containsKey(id)) ...[
-                Row(
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: GlassContainer(
+              isDarkMode: isDark,
+              borderRadius: 16,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: LinearProgressIndicator(
-                        value: _uploadProgress[id],
-                        color: Colors.green,
-                        backgroundColor: Colors.grey[300],
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            patientName,
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: textColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          'ID: $id',
+                          style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor, fontWeight: FontWeight.w600),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 6),
                     Text(
-                      _uploadStatus[id]!,
-                      style: GoogleFonts.outfit(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                      'Test: $testName',
+                      style: GoogleFonts.outfit(fontSize: 14, color: textColor, fontWeight: FontWeight.w500),
+                    ),
+                    Text(
+                      'Slot: $date  •  $slot',
+                      style: GoogleFonts.outfit(fontSize: 12, color: subtitleColor),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Patient Symptoms / Reason:',
+                      style: GoogleFonts.outfit(fontSize: 11, color: subtitleColor, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      symptoms,
+                      style: GoogleFonts.outfit(fontSize: 13, color: textColor),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_uploadStatus.containsKey(id)) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: LinearProgressIndicator(
+                              value: _uploadProgress[id],
+                              color: Colors.green,
+                              backgroundColor: Colors.grey[300],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _uploadStatus[id]!,
+                            style: GoogleFonts.outfit(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (status == 'pending') ...[
+                          ElevatedButton(
+                            onPressed: () => _updateStatus(id, 'accepted'),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, minimumSize: const Size(0, 40)),
+                            child: const Text('Accept Booking'),
+                          ),
+                        ],
+                        if (status == 'accepted') ...[
+                          ElevatedButton.icon(
+                            onPressed: () => _updateStatus(id, 'checked_in'),
+                            icon: const Icon(Icons.where_to_vote, size: 16),
+                            label: const Text('Check In'),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white, minimumSize: const Size(0, 40)),
+                          ),
+                        ],
+                        if (status == 'checked_in') ...[
+                          if (pdfUrl != null)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _deletePDF(id),
+                              tooltip: 'Delete Uploaded PDF',
+                            ),
+                          ElevatedButton.icon(
+                            onPressed: () => _pickAndUploadPDF(id),
+                            icon: const Icon(Icons.upload_file, size: 16),
+                            label: Text(pdfUrl != null ? 'Replace PDF' : 'Upload PDF Report'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: pdfUrl != null ? Colors.amber[800] : Colors.blue,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 40),
+                            ),
+                          ),
+                          if (pdfUrl != null)
+                            ElevatedButton(
+                              onPressed: () => _updateStatus(id, 'completed'),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, minimumSize: const Size(0, 40)),
+                              child: const Text('Mark Completed'),
+                            ),
+                        ],
+                        if (status == 'completed') ...[
+                          const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Completed & Shared',
+                            style: GoogleFonts.outfit(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-              ],
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (status == 'pending') ...[
-                    ElevatedButton(
-                      onPressed: () => _labService.updateBookingStatus(id, 'accepted'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, minimumSize: const Size(0, 40)),
-                      child: const Text('Accept Booking'),
-                    ),
-                  ],
-                  if (status == 'accepted') ...[
-                    ElevatedButton.icon(
-                      onPressed: () => _labService.updateBookingStatus(id, 'checked_in'),
-                      icon: const Icon(Icons.where_to_vote, size: 16),
-                      label: const Text('Check In'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white, minimumSize: const Size(0, 40)),
-                    ),
-                  ],
-                  if (status == 'checked_in') ...[
-                    if (pdfUrl != null)
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () => _deletePDF(id),
-                        tooltip: 'Delete Uploaded PDF',
-                      ),
-                    ElevatedButton.icon(
-                      onPressed: () => _pickAndUploadPDF(id),
-                      icon: const Icon(Icons.upload_file, size: 16),
-                      label: Text(pdfUrl != null ? 'Replace PDF' : 'Upload PDF Report'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: pdfUrl != null ? Colors.amber[800] : Colors.blue,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 40),
-                      ),
-                    ),
-                    if (pdfUrl != null)
-                      ElevatedButton(
-                        onPressed: () => _labService.updateBookingStatus(id, 'completed'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, minimumSize: const Size(0, 40)),
-                        child: const Text('Mark Completed'),
-                      ),
-                  ],
-                  if (status == 'completed') ...[
-                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Completed & Shared',
-                      style: GoogleFonts.outfit(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                  ],
-                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
-    );
-      },
     );
   }
 }

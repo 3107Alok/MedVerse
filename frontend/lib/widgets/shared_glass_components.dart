@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/glassmorphism.dart';
@@ -589,4 +590,444 @@ Future<void> showGlassSettingsModal(BuildContext context, bool isDarkMode, Funct
       );
     },
   );
+}
+
+// ----------------------------------------------------
+// PREMIUM GLASSMORPHIC SUCCESS DIALOG
+// ----------------------------------------------------
+
+class GlassSuccessDialogContent extends StatefulWidget {
+  final bool isDarkMode;
+  final String title;
+  final String message;
+  final List<Map<String, String>> details;
+  final VoidCallback? onDone;
+  final Duration? autoDismissDuration;
+
+  const GlassSuccessDialogContent({
+    super.key,
+    required this.isDarkMode,
+    required this.title,
+    required this.message,
+    required this.details,
+    this.onDone,
+    this.autoDismissDuration,
+  });
+
+  @override
+  State<GlassSuccessDialogContent> createState() => _GlassSuccessDialogContentState();
+}
+
+class _GlassSuccessDialogContentState extends State<GlassSuccessDialogContent> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _rotationAnimation;
+  late Animation<double> _fadeAnimation;
+  Timer? _timer;
+  bool _isDismissed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    _scaleAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.elasticOut,
+    );
+
+    _rotationAnimation = Tween<double>(begin: -0.2, end: 0.0).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutBack,
+    ));
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeIn,
+    );
+
+    _animController.forward();
+
+    // Start auto-dismiss timer
+    if (widget.autoDismissDuration != null) {
+      _timer = Timer(widget.autoDismissDuration!, () {
+        _dismiss();
+      });
+    }
+  }
+
+  void _dismiss() {
+    if (_isDismissed) return;
+    _isDismissed = true;
+    _timer?.cancel();
+    if (mounted) {
+      Navigator.of(context).pop();
+      if (widget.onDone != null) {
+        widget.onDone!();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = widget.isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white70 : Colors.grey[700];
+
+    return WillPopScope(
+      onWillPop: () async {
+        _dismiss();
+        return false;
+      },
+      child: GestureDetector(
+        onTap: _dismiss, // Tap anywhere to dismiss instantly
+        child: Dialog(
+          key: const ValueKey('glass_success_dialog_body'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: GlassContainer(
+                isDarkMode: isDark,
+                borderRadius: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Success Checkmark Animation
+                    RotationTransition(
+                      turns: _rotationAnimation,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.greenAccent[400]!.withOpacity(isDark ? 0.15 : 0.08),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.greenAccent[400]!.withOpacity(isDark ? 0.35 : 0.2),
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.check_circle_rounded,
+                          size: 52,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Title
+                    Text(
+                      widget.title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Message
+                    Text(
+                      widget.message,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        color: subtitleColor,
+                      ),
+                    ),
+                    if (widget.details.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.02),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04),
+                          ),
+                        ),
+                        child: Column(
+                          children: widget.details.map((detail) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "${detail['label']}: ",
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: subtitleColor,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      detail['value'] ?? '',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 28),
+                    // Done Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _dismiss,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Done',
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> showGlassSuccessDialog({
+  required BuildContext context,
+  required bool isDarkMode,
+  required String title,
+  required String message,
+  required List<Map<String, String>> details,
+  VoidCallback? onDone,
+  Duration? autoDismissDuration,
+}) {
+  return showGeneralDialog(
+    context: context,
+    barrierDismissible: false,
+    barrierLabel: 'SuccessDialog',
+    transitionDuration: const Duration(milliseconds: 300),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      return GlassSuccessDialogContent(
+        isDarkMode: isDarkMode,
+        title: title,
+        message: message,
+        details: details,
+        onDone: onDone,
+        autoDismissDuration: autoDismissDuration,
+      );
+    },
+  );
+}
+
+Future<void> showGlassAlertDialog({
+  required BuildContext context,
+  required bool isDarkMode,
+  required String title,
+  required String message,
+  VoidCallback? onDone,
+}) {
+  return showGeneralDialog(
+    context: context,
+    barrierDismissible: false,
+    barrierLabel: 'AlertDialog',
+    transitionDuration: const Duration(milliseconds: 300),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      return GlassAlertDialogContent(
+        isDarkMode: isDarkMode,
+        title: title,
+        message: message,
+        onDone: onDone,
+      );
+    },
+  );
+}
+
+class GlassAlertDialogContent extends StatefulWidget {
+  final bool isDarkMode;
+  final String title;
+  final String message;
+  final VoidCallback? onDone;
+
+  const GlassAlertDialogContent({
+    super.key,
+    required this.isDarkMode,
+    required this.title,
+    required this.message,
+    this.onDone,
+  });
+
+  @override
+  State<GlassAlertDialogContent> createState() => _GlassAlertDialogContentState();
+}
+
+class _GlassAlertDialogContentState extends State<GlassAlertDialogContent> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutBack,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _dismiss() {
+    _controller.reverse().then((_) {
+      Navigator.pop(context);
+      if (widget.onDone != null) {
+        widget.onDone!();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor = isDark ? Colors.white60 : Colors.grey[600];
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        _dismiss();
+      },
+      child: GestureDetector(
+        onTap: _dismiss,
+        child: Dialog(
+          key: const ValueKey('glass_alert_dialog_body'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: GlassContainer(
+                isDarkMode: isDark,
+                borderRadius: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.amber[800]!.withOpacity(isDark ? 0.15 : 0.08),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.amber[800]!.withOpacity(isDark ? 0.35 : 0.2),
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        size: 52,
+                        color: Colors.amber[800],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      widget.title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.message,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        color: subtitleColor,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _dismiss,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber[800],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'OK',
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

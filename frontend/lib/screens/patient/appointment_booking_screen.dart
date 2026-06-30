@@ -31,6 +31,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   List<String> _dynamicSlots = [];
   bool _isSlotsLoading = false;
   String? _slotsErrorMessage;
+  bool _isBooking = false;
 
   @override
   void initState() {
@@ -180,33 +181,78 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   }
 
   Future<void> _bookAppointment() async {
-    if (!_formKey.currentState!.validate() || _selectedDoctorId == null || _selectedSlot == null) return;
+    if (!_formKey.currentState!.validate() || _selectedDoctorId == null || _selectedSlot == null || _isBooking) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final selectedDoc = _doctors.firstWhere((d) => d['uid'] == _selectedDoctorId);
+    final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
+    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
-    final bookingData = {
-      'patient_id': authProvider.user?.uid,
-      'patient_name': authProvider.user?.name ?? 'Patient',
-      'doctor_id': _selectedDoctorId,
-      'doctor_name': selectedDoc['name'] ?? 'Doctor',
-      'date': DateFormat('yyyy-MM-dd').format(_selectedDate),
-      'time_slot': _selectedSlot,
-      'symptoms': _symptomsController.text.trim(),
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    };
+    setState(() {
+      _isBooking = true;
+    });
 
     try {
+      // Check if user already booked this doctor on this day
+      final existingQuery = await FirebaseFirestore.instance
+          .collection('appointments')
+          .where('patient_id', isEqualTo: authProvider.user?.uid)
+          .where('doctor_id', isEqualTo: _selectedDoctorId)
+          .where('date', isEqualTo: dateStr)
+          .get();
+
+      if (existingQuery.docs.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _isBooking = false;
+          });
+          showGlassAlertDialog(
+            context: context,
+            isDarkMode: isDark,
+            title: 'Request Exists',
+            message: 'You already have an appointment request with this doctor for this date.',
+          );
+        }
+        return;
+      }
+
+      final selectedDoc = _doctors.firstWhere((d) => d['uid'] == _selectedDoctorId);
+
+      final bookingData = {
+        'patient_id': authProvider.user?.uid,
+        'patient_name': authProvider.user?.name ?? 'Patient',
+        'doctor_id': _selectedDoctorId,
+        'doctor_name': selectedDoc['name'] ?? 'Doctor',
+        'date': dateStr,
+        'time_slot': _selectedSlot,
+        'symptoms': _symptomsController.text.trim(),
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      };
       await _bookingService.bookAppointment(bookingData);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Appointment Booked Successfully!')),
+        final isDark = Provider.of<ThemeNotifier>(context, listen: false).isDarkMode;
+        showGlassSuccessDialog(
+          context: context,
+          isDarkMode: isDark,
+          title: 'Booking Confirmed',
+          message: 'Appointment booked successfully!\nPlease wait for approval from the doctor.',
+          details: [
+            {'label': 'Doctor', 'value': selectedDoc['name'] ?? 'Doctor'},
+            {'label': 'Date', 'value': DateFormat('EEEE, MMM d, yyyy').format(_selectedDate)},
+            {'label': 'Time Slot', 'value': _selectedSlot ?? ''},
+          ],
+          onDone: () {
+            if (mounted) {
+              Navigator.pop(context);
+            }
+          },
         );
-        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isBooking = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Booking Failed')),
         );
@@ -433,13 +479,19 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                     const SizedBox(height: 36),
                     
                     ElevatedButton(
-                      onPressed: (_selectedDoctorId != null && _selectedSlot != null) ? _bookAppointment : null,
+                      onPressed: (_selectedDoctorId != null && _selectedSlot != null && !_isBooking) ? _bookAppointment : null,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         minimumSize: const Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: Text('Confirm Booking', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: _isBooking
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            )
+                          : Text('Confirm Booking', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
