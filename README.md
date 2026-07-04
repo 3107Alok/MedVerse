@@ -35,7 +35,7 @@ AI-powered healthcare platform connecting **Patients**, **Doctors**, **Laborator
 - Persistent chat sessions with full conversation history
 
 ### Secure Document Storage
-- All files stored in **MongoDB GridFS** (not Firestore)
+- All files are stored in **MongoDB GridFS** (not Firestore)
 - Token-based API auth (`Bearer <Firebase ID Token>`)
 - Doctors can only access patient files if an active appointment exists
 - Patients can upload, view, download & delete their own documents
