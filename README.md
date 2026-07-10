@@ -1,6 +1,6 @@
 # MedVerse 🩺
 
-AI-powered healthcare platform connecting **Patients**, **Doctors**, **Laboratories**, and **Admins** — built with **Flutter**, **Flask**, **Firebase**, **MongoDB GridFS**, and **Google Gemini AI**.
+AI-powered healthcare platform connecting **Patients**, **Doctors**, **Laboratories**, and **Admin** — built with **Flutter**, **Flask**, **Firebase**, **MongoDB GridFS**, and **Google Gemini AI**.
 
 ---
 
