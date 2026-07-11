@@ -49,7 +49,7 @@ AI-powered healthcare platform connecting **Patients**, **Doctors**, **Laborator
 
 ### Auth & Security
 - Firebase Authentication with mandatory email verification
-- Role-based access control
+- Role-based access control for privacy
 - Lazy Firestore document creation (post-verification only)
 - Secure password reset flow
 
