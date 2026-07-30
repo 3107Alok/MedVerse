@@ -15,7 +15,7 @@ AI-powered healthcare platform connecting **Patients**, **Doctors**, **Laborator
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
 ### Multi-Role Platform
 - **Patient** — Book appointments, upload documents, view reports, AI chatbot
