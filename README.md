@@ -69,7 +69,7 @@ AI-powered healthcare platform connecting **Patients**, **Doctors**, **Laborator
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```
 MedVerse/
