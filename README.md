@@ -4,7 +4,7 @@ AI-powered healthcare platform connecting **Patients**, **Doctors**, **Laborator
 
 ---
 
-##  Architecture
+##    Architecture
 
 ```
 [ Flutter App ] ──► [ Flask API ] ──► Firebase Auth (Token Verify)
