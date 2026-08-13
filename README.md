@@ -7,7 +7,7 @@ AI-powered healthcare platform connecting **Patients**, **Doctors**, **Laborator
 ##    Architecture
 
 ```
-[ Flutter App ] ──► [ Flask API ] ──► Firebase Auth (Token Verify)
+[ Flutter App ] ──► [ Flask API ] ──► Firebase Auth (Token Verify
                                   ──► MongoDB GridFS (File Storage)
                                   ──► Firestore (Profiles & Appointments)
                                   ──► Google Gemini AI (Document Analysis)
